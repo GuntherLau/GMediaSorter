@@ -4,6 +4,9 @@ import * as fs from 'fs/promises';
 import ffmpeg from 'fluent-ffmpeg';
 import ffprobeStatic from 'ffprobe-static';
 import pLimit from 'p-limit';
+import { DuplicateDetectorService } from './services/duplicate-detector';
+import { SimilarityDetectorService } from './services/similarity-detector';
+import { VideoFile, SimilarityOptions, DetectionProgress } from '../src/types';
 
 const ffprobePath = ffprobeStatic.path.replace('app.asar', 'app.asar.unpacked');
 ffmpeg.setFfprobePath(ffprobePath);
@@ -207,5 +210,79 @@ ipcMain.handle('copy-file', async (_event: IpcMainInvokeEvent, sourcePath: strin
   } catch (error) {
     console.error('Error copying file:', error);
     return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('delete-file', async (_event: IpcMainInvokeEvent, filePath: string) => {
+  try {
+    await fs.unlink(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+// 重复检测服务实例
+const duplicateDetector = new DuplicateDetectorService();
+
+ipcMain.handle('detect-duplicates', async (event: IpcMainInvokeEvent, files: VideoFile[]) => {
+  try {
+    const result = await duplicateDetector.detectDuplicates(
+      files,
+      (current, total, message, file) => {
+        const progress: DetectionProgress = {
+          current,
+          total,
+          percentage: Math.floor((current / total) * 100),
+          message,
+          currentFile: file
+        };
+        event.sender.send('detection-progress', progress);
+      }
+    );
+    return result;
+  } catch (error) {
+    console.error('Error detecting duplicates:', error);
+    throw error;
+  }
+});
+
+// 相似检测服务实例
+const similarityDetector = new SimilarityDetectorService();
+
+ipcMain.handle('detect-similarity', async (event: IpcMainInvokeEvent, files: VideoFile[], options: SimilarityOptions) => {
+  try {
+    const result = await similarityDetector.detectSimilarity(
+      files,
+      options,
+      (current, total, message, file) => {
+        const progress: DetectionProgress = {
+          current,
+          total,
+          percentage: Math.floor((current / total) * 100),
+          message,
+          currentFile: file
+        };
+        event.sender.send('detection-progress', progress);
+      }
+    );
+    return result;
+  } catch (error) {
+    console.error('Error detecting similarity:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('cancel-detection', async (_event: IpcMainInvokeEvent, taskId: string) => {
+  try {
+    if (taskId === 'duplicate') {
+      duplicateDetector.cancel();
+    } else if (taskId === 'similarity') {
+      similarityDetector.cancel();
+    }
+  } catch (error) {
+    console.error('Error cancelling detection:', error);
+    throw error;
   }
 });
