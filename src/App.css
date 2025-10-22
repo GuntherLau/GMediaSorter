@@ -108,7 +108,22 @@
   font-weight: 600;
 }
 
-.selection-info {
+/* 选中文件提示栏 */
+.selection-info-bar {
+  background: #e3f2fd;
+  border: 1px solid #64b5f6;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  color: #1565c0;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ==================== 旧的过滤器样式 (已弃用) ==================== */
+
+/* .selection-info {
   color: #667eea;
   font-weight: 600;
 }
@@ -172,7 +187,9 @@
   color: white;
   border-color: transparent;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
-}
+} */
+
+/* ==================== 视频网格 ==================== */
 
 .video-grid {
   display: grid;
@@ -235,6 +252,12 @@
 }
 
 .video-resolution {
+  font-size: 12px;
+  color: #555;
+  margin-top: 6px;
+}
+
+.video-duration {
   font-size: 12px;
   color: #555;
   margin-top: 6px;

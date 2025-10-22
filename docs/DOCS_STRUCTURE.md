@@ -86,8 +86,9 @@ README.md
 PROJECT_SUMMARY.md
    ↓
 设计文档:
-   ├─ video-resolution-filter-plan.md
-   └─ duplicate-similarity-detection-plan.md
+   │   ├── video-resolution-filter-plan.md      (分辨率过滤功能设计)
+│   ├── video-duration-filter-plan.md        (时长过滤与多条件过滤器设计)
+│   └── duplicate-similarity-detection-plan.md (去重与相似检测设计)
    ↓
 IMPLEMENTATION_SUMMARY.md
    ↓

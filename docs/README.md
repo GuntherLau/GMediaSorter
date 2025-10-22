@@ -63,6 +63,7 @@ docs/
 ### 功能实现
 
 - [视频分辨率过滤](video-resolution-filter-plan.md) - 分辨率筛选功能的设计和实现
+- [视频时长过滤与多条件过滤器](video-duration-filter-plan.md) - 时长过滤及可扩展的多维度过滤器架构
 - [视频去重与相似检测](duplicate-similarity-detection-plan.md) - 重复和相似视频检测的完整方案
 
 ### 技术栈

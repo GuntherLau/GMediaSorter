@@ -1,0 +1,49 @@
+/**
+ * FilterDimension 组件样式
+ */
+
+.filter-dimension {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 维度标签 */
+.dimension-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 选项容器 */
+.dimension-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .filter-dimension {
+    gap: 10px;
+  }
+  
+  .dimension-label {
+    font-size: 13px;
+  }
+  
+  .dimension-options {
+    gap: 6px;
+  }
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  .dimension-label {
+    color: #e0e0e0;
+  }
+}

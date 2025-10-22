@@ -1,0 +1,198 @@
+/**
+ * FilterPanel 组件样式
+ */
+
+.filter-panel {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+/* ==================== 顶部栏 ==================== */
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* 折叠按钮 */
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.filter-toggle:hover {
+  background: #e9ecef;
+}
+
+.filter-toggle:active {
+  transform: scale(0.98);
+}
+
+.toggle-icon {
+  font-size: 10px;
+  transition: transform 0.3s ease;
+}
+
+.toggle-text {
+  user-select: none;
+}
+
+/* 清除全部按钮 */
+.clear-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  margin-left: auto;
+  border: 1px solid #dc3545;
+  background: white;
+  color: #dc3545;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.clear-all-btn:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.clear-all-btn:active {
+  transform: scale(0.98);
+}
+
+.clear-icon {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.clear-text {
+  user-select: none;
+}
+
+/* ==================== 过滤器主体 ==================== */
+
+.filter-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 8px;
+  animation: slideDown 0.3s ease;
+}
+
+/* 滑入动画 */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== 响应式设计 ==================== */
+
+@media (max-width: 768px) {
+  .filter-panel {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .filter-header {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .filter-toggle {
+    padding: 5px 10px;
+    font-size: 13px;
+  }
+  
+  .clear-all-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  
+  .filter-body {
+    gap: 16px;
+  }
+}
+
+/* 小屏幕：隐藏按钮文字，只显示图标 */
+@media (max-width: 480px) {
+  .toggle-text,
+  .clear-text {
+    display: none;
+  }
+  
+  .filter-toggle,
+  .clear-all-btn {
+    padding: 6px 10px;
+    min-width: 36px;
+    justify-content: center;
+  }
+}
+
+/* ==================== 深色模式 ==================== */
+
+@media (prefers-color-scheme: dark) {
+  .filter-panel {
+    background: #1e1e1e;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  
+  .filter-toggle {
+    color: #e0e0e0;
+  }
+  
+  .filter-toggle:hover {
+    background: #2a2a2a;
+  }
+  
+  .clear-all-btn {
+    background: #2a2a2a;
+    border-color: #f44336;
+    color: #f44336;
+  }
+  
+  .clear-all-btn:hover {
+    background: #f44336;
+    color: white;
+  }
+}
+
+/* ==================== 打印样式 ==================== */
+
+@media print {
+  .filter-panel {
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+  
+  .filter-toggle,
+  .clear-all-btn {
+    display: none;
+  }
+}

@@ -1,10 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
 import './App.css';
-import type { ResolutionFilter, ResolutionPreset, VideoFile, DuplicateResult, SimilarityResult, DetectionProgress, SimilarityOptions } from './types';
+import type { VideoFile, DuplicateResult, SimilarityResult, DetectionProgress, SimilarityOptions, FilterState } from './types';
+import { filterVideoFiles, formatDuration } from './utils/filters';
 import Toolbar from './components/Toolbar';
 import ProgressDialog from './components/ProgressDialog';
 import DuplicatePanel from './components/DuplicatePanel';
 import SimilarityPanel from './components/SimilarityPanel';
+import { FilterPanel } from './components/FilterPanel';
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
@@ -20,27 +22,17 @@ const formatResolution = (file: VideoFile): string | null => {
   return null;
 };
 
-const resolutionLabelDisplay: Record<ResolutionPreset, string> = {
-  lt720p: '小于 720p',
-  '720p': '720p',
-  '1080p': '1080p',
-  gt1080p: '大于 1080p',
-};
-
-const resolutionFilterOptions: Array<{ value: ResolutionFilter; label: string }> = [
-  { value: 'all', label: '全部' },
-  { value: 'lt720p', label: '小于 720p' },
-  { value: '720p', label: '720p' },
-  { value: '1080p', label: '1080p' },
-  { value: 'gt1080p', label: '大于 1080p' },
-];
-
 function App() {
   const [currentPath, setCurrentPath] = useState<string>('');
   const [videoFiles, setVideoFiles] = useState<VideoFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
-  const [resolutionFilter, setResolutionFilter] = useState<ResolutionFilter>('all');
+  
+  // 多维度过滤器状态
+  const [filters, setFilters] = useState<FilterState>({
+    resolution: 'all',
+    duration: 'all',
+  });
   
   // 检测相关状态
   const [detecting, setDetecting] = useState(false);
@@ -49,12 +41,10 @@ function App() {
   const [similarityResult, setSimilarityResult] = useState<SimilarityResult | null>(null);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
+  // 过滤后的视频文件列表
   const filteredVideoFiles = useMemo(() => {
-    if (resolutionFilter === 'all') {
-      return videoFiles;
-    }
-    return videoFiles.filter((file) => file.resolutionLabel === resolutionFilter);
-  }, [videoFiles, resolutionFilter]);
+    return filterVideoFiles(videoFiles, filters);
+  }, [videoFiles, filters]);
 
   const handleSelectDirectory = async () => {
     try {
@@ -75,7 +65,11 @@ function App() {
       const files = await window.electronAPI.getVideoFiles(dirPath);
       setVideoFiles(files);
       setSelectedFiles(new Set());
-      setResolutionFilter('all');
+      // 重置过滤器
+      setFilters({
+        resolution: 'all',
+        duration: 'all',
+      });
     } catch (error) {
       console.error('Error loading video files:', error);
       alert('加载视频文件失败');
@@ -94,8 +88,20 @@ function App() {
     setSelectedFiles(newSelection);
   };
 
-  const handleFilterChange = (filter: ResolutionFilter) => {
-    setResolutionFilter(filter);
+  // 更新单个过滤维度
+  const updateFilter = <K extends keyof FilterState>(
+    dimension: K,
+    value: FilterState[K]
+  ) => {
+    setFilters(prev => ({ ...prev, [dimension]: value }));
+  };
+
+  // 清除所有过滤器
+  const clearAllFilters = () => {
+    setFilters({
+      resolution: 'all',
+      duration: 'all',
+    });
   };
 
   // 监听检测进度
@@ -253,29 +259,21 @@ function App() {
               videoCount={filteredVideoFiles.length}
             />
 
-            <div className="filter-bar">
-              <span className="filter-label">分辨率过滤:</span>
-              <div className="filter-options">
-                {resolutionFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`filter-btn ${resolutionFilter === option.value ? 'active' : ''}`}
-                    onClick={() => handleFilterChange(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+            {/* 新的多维度过滤器面板 */}
+            <FilterPanel
+              filters={filters}
+              onFilterChange={updateFilter}
+              onClearAll={clearAllFilters}
+              totalCount={videoFiles.length}
+              filteredCount={filteredVideoFiles.length}
+            />
+
+            {/* 选中文件提示 */}
+            {selectedFiles.size > 0 && (
+              <div className="selection-info-bar">
+                已选择 {selectedFiles.size} 个文件
               </div>
-              <div className="filter-info">
-                {resolutionFilter !== 'all' && (
-                  <span className="filter-count">筛选出 {filteredVideoFiles.length} / {videoFiles.length} 个</span>
-                )}
-                {selectedFiles.size > 0 && (
-                  <span className="selection-info">已选择 {selectedFiles.size} 个</span>
-                )}
-              </div>
-            </div>
+            )}
 
             {filteredVideoFiles.length > 0 ? (
               <div className="video-grid">
@@ -299,7 +297,11 @@ function App() {
                       {formatResolution(file) && (
                         <p className="video-resolution" title="视频分辨率">
                           分辨率: {formatResolution(file)}
-                          {file.resolutionLabel && ` • ${resolutionLabelDisplay[file.resolutionLabel]}`}
+                        </p>
+                      )}
+                      {file.duration !== null && (
+                        <p className="video-duration" title="视频时长">
+                          时长: {formatDuration(file.duration)}
                         </p>
                       )}
                     </div>

@@ -1,0 +1,102 @@
+/**
+ * FilterChip 组件样式
+ * 
+ * 提供现代化的 Chip 风格按钮样式
+ */
+
+.filter-chip {
+  /* 布局 */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 16px;
+  
+  /* 外观 */
+  border-radius: 16px;
+  border: 1px solid #ddd;
+  background: #fff;
+  
+  /* 文字 */
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  
+  /* 交互 */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  
+  /* 重置按钮默认样式 */
+  outline: none;
+  font-family: inherit;
+}
+
+/* 鼠标悬停效果 */
+.filter-chip:hover {
+  border-color: #4a90e2;
+  background: #f5f9ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(74, 144, 226, 0.1);
+}
+
+/* 激活状态 */
+.filter-chip.active {
+  background: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+  box-shadow: 0 2px 6px rgba(74, 144, 226, 0.3);
+}
+
+.filter-chip.active:hover {
+  background: #357abd;
+  border-color: #357abd;
+}
+
+/* 聚焦状态（键盘导航） */
+.filter-chip:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
+/* 按下效果 */
+.filter-chip:active {
+  transform: translateY(0);
+}
+
+/* 图标样式 */
+.chip-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* 响应式设计 - 移动端 */
+@media (max-width: 768px) {
+  .filter-chip {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+  
+  .chip-icon {
+    font-size: 13px;
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .filter-chip {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+  
+  .filter-chip:hover {
+    background: #333;
+    border-color: #4a90e2;
+  }
+  
+  .filter-chip.active {
+    background: #4a90e2;
+    color: white;
+  }
+}

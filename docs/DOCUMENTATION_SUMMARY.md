@@ -210,4 +210,4 @@ README.md → DEPLOYMENT.md → FFMPEG-PACKAGING.md → verify-ffmpeg.sh
 ---
 
 📅 完成日期: 2025-10-21
-👤 完成者: GitHub Copilot
+👤 完成者: GMediaSorter Team
