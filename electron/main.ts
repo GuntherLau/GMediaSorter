@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent, Menu, MenuItemConstructorOptions, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import ffmpeg from 'fluent-ffmpeg';
@@ -6,7 +6,8 @@ import ffprobeStatic from 'ffprobe-static';
 import pLimit from 'p-limit';
 import { DuplicateDetectorService } from './services/duplicate-detector';
 import { SimilarityDetectorService } from './services/similarity-detector';
-import { VideoFile, SimilarityOptions, DetectionProgress } from '../src/types';
+import { ConversionService } from './services/conversion-service';
+import { VideoFile, SimilarityOptions, DetectionProgress, ConversionRequest, ConversionProgress } from '../src/types';
 
 const ffprobePath = ffprobeStatic.path.replace('app.asar', 'app.asar.unpacked');
 ffmpeg.setFfprobePath(ffprobePath);
@@ -30,6 +31,40 @@ let mainWindow: BrowserWindow | null = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 const probeLimit = pLimit(PROBE_CONCURRENCY);
+
+function createAppMenu() {
+  const template: MenuItemConstructorOptions[] = [
+    ...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
+    { role: 'fileMenu' as const },
+    { role: 'editMenu' as const },
+    {
+      label: '工具',
+      submenu: [
+        {
+          label: '视频编码转换',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu:open-conversion-menu');
+            }
+          },
+        },
+      ],
+    },
+    { role: 'viewMenu' as const },
+    { role: 'windowMenu' as const },
+    ...(isDev
+      ? [
+          {
+            role: 'help' as const,
+            submenu: [{ role: 'toggleDevTools' as const }],
+          },
+        ]
+      : []),
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
 
 function calculateResolutionLabel(width: number | null, height: number | null): Pick<VideoMetadata, 'resolutionLabel' | 'effectiveVerticalResolution'> {
   if (!width || !height) {
@@ -127,6 +162,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  createAppMenu();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -145,6 +181,13 @@ app.on('window-all-closed', () => {
 ipcMain.handle('select-directory', async () => {
   const result = await dialog.showOpenDialog(mainWindow!, {
     properties: ['openDirectory'],
+  });
+  return result.filePaths[0];
+});
+
+ipcMain.handle('select-output-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openDirectory', 'createDirectory'],
   });
   return result.filePaths[0];
 });
@@ -250,6 +293,7 @@ ipcMain.handle('detect-duplicates', async (event: IpcMainInvokeEvent, files: Vid
 
 // 相似检测服务实例
 const similarityDetector = new SimilarityDetectorService();
+const conversionService = new ConversionService();
 
 ipcMain.handle('detect-similarity', async (event: IpcMainInvokeEvent, files: VideoFile[], options: SimilarityOptions) => {
   try {
@@ -283,6 +327,47 @@ ipcMain.handle('cancel-detection', async (_event: IpcMainInvokeEvent, taskId: st
     }
   } catch (error) {
     console.error('Error cancelling detection:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('conversion-start', async (event: IpcMainInvokeEvent, request: ConversionRequest) => {
+  try {
+    const result = await conversionService.convert(
+      request,
+      (progress: ConversionProgress) => {
+        event.sender.send('conversion-progress', progress);
+      },
+    );
+    event.sender.send('conversion-complete', result);
+    return result;
+  } catch (error) {
+    console.error('Error during conversion:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('conversion-cancel', async () => {
+  conversionService.cancel();
+});
+
+ipcMain.handle('open-path', async (_event: IpcMainInvokeEvent, targetPath: string) => {
+  if (!targetPath) {
+    return '';
+  }
+  try {
+    return await shell.openPath(targetPath);
+  } catch (error) {
+    console.error('Error opening path:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-conversion-log-path', async () => {
+  try {
+    return ConversionService.getLogPath();
+  } catch (error) {
+    console.error('Error getting conversion log path:', error);
     throw error;
   }
 });

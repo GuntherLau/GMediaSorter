@@ -1,12 +1,34 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import './App.css';
-import type { VideoFile, DuplicateResult, SimilarityResult, DetectionProgress, SimilarityOptions, FilterState } from './types';
+import {
+  DEFAULT_CONVERSION_OPTIONS,
+  type VideoFile,
+  type DuplicateResult,
+  type SimilarityResult,
+  type DetectionProgress,
+  type SimilarityOptions,
+  type FilterState,
+  type EncodingFormat,
+  type ConversionRequest,
+  type ConversionProgress,
+  type ConversionResult,
+  type ConversionOptions,
+} from './types';
 import { filterVideoFiles, formatDuration } from './utils/filters';
 import Toolbar from './components/Toolbar';
 import ProgressDialog from './components/ProgressDialog';
 import DuplicatePanel from './components/DuplicatePanel';
 import SimilarityPanel from './components/SimilarityPanel';
 import { FilterPanel } from './components/FilterPanel';
+import ConversionMenu from './components/ConversionMenu';
+import ConversionProgressDialog from './components/ConversionProgressDialog';
+import ConversionResultDialog from './components/ConversionResultDialog';
+
+type ConversionDraft = {
+  format: EncodingFormat;
+  filePaths: string[];
+  options: ConversionOptions;
+};
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
@@ -27,6 +49,17 @@ function App() {
   const [videoFiles, setVideoFiles] = useState<VideoFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [isConversionMenuOpen, setConversionMenuOpen] = useState(false);
+  const [pendingConversionDraft, setPendingConversionDraft] = useState<ConversionDraft | null>(null);
+  const [conversionRequest, setConversionRequest] = useState<ConversionRequest | null>(null);
+  const [activeConversionMeta, setActiveConversionMeta] = useState<{ format: EncodingFormat; outputDir: string; total: number } | null>(null);
+  const [conversionProgress, setConversionProgress] = useState<ConversionProgress | null>(null);
+  const [conversionResult, setConversionResult] = useState<ConversionResult | null>(null);
+  const [lastConversionSelection, setLastConversionSelection] = useState<{ format: EncodingFormat; options: ConversionOptions }>(() => ({
+    format: 'h264',
+    options: { ...DEFAULT_CONVERSION_OPTIONS },
+  }));
+  const [conversionCandidates, setConversionCandidates] = useState<string[]>([]);
   
   // 多维度过滤器状态
   const [filters, setFilters] = useState<FilterState>({
@@ -111,6 +144,29 @@ function App() {
     });
     return removeListener;
   }, []);
+
+  const handleOpenConversionMenu = useCallback(() => {
+    if (conversionProgress && conversionProgress.status === 'running') {
+      alert('当前已有转码任务正在进行，请稍候再试');
+      return;
+    }
+
+    const candidates = filteredVideoFiles.map((file) => file.path);
+    if (candidates.length === 0) {
+      alert('当前列表中没有可转换的视频文件');
+      return;
+    }
+
+    setConversionCandidates(candidates);
+    setConversionMenuOpen(true);
+  }, [conversionProgress, filteredVideoFiles]);
+
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.onConversionMenuOpen(() => {
+      handleOpenConversionMenu();
+    });
+    return unsubscribe;
+  }, [handleOpenConversionMenu]);
 
   // 处理"找相同"
   const handleFindDuplicates = async () => {
@@ -226,8 +282,180 @@ function App() {
     }
 
     // 关闭结果面板
-    setDuplicateResult(null);
-  };
+      setDuplicateResult(null);
+    };
+
+  useEffect(() => {
+    if (!pendingConversionDraft) {
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const outputDir = await window.electronAPI.selectOutputDirectory();
+        if (!outputDir || cancelled) {
+          return;
+        }
+        setConversionRequest({
+          format: pendingConversionDraft.format,
+          filePaths: pendingConversionDraft.filePaths,
+          outputDir,
+          options: { ...pendingConversionDraft.options },
+        });
+        setActiveConversionMeta({
+          format: pendingConversionDraft.format,
+          outputDir,
+          total: pendingConversionDraft.filePaths.length,
+        });
+      } catch (error) {
+        console.error('选择输出目录失败:', error);
+      } finally {
+        if (!cancelled) {
+          setPendingConversionDraft(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingConversionDraft]);
+
+  useEffect(() => {
+    if (!conversionRequest) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const initialProgress: ConversionProgress = {
+      total: conversionRequest.filePaths.length,
+      processed: 0,
+      successCount: 0,
+      failureCount: 0,
+      percentage: conversionRequest.filePaths.length === 0 ? 100 : 0,
+      status: 'running',
+    };
+    setConversionProgress(initialProgress);
+
+    const run = async () => {
+      try {
+        await window.electronAPI.requestConversion(conversionRequest);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        console.error('发起转码失败:', error);
+
+        let logPath = '';
+        try {
+          logPath = await window.electronAPI.getConversionLogPath();
+        } catch (logError) {
+          console.error('获取转码日志路径失败:', logError);
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setConversionProgress(null);
+        setConversionResult({
+          format: conversionRequest.format,
+          outputDir: conversionRequest.outputDir,
+          success: [],
+          failures: conversionRequest.filePaths.map((input) => ({
+            input,
+            error: error instanceof Error ? error.message : String(error),
+            attempts: 0,
+          })),
+          cancelled: false,
+          elapsedMs: 0,
+          options: conversionRequest.options,
+          logPath,
+        });
+        setActiveConversionMeta(null);
+      } finally {
+        if (!cancelled) {
+          setConversionRequest(null);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [conversionRequest]);
+
+  useEffect(() => {
+    const offProgress = window.electronAPI.onConversionProgress((progress) => {
+      setConversionProgress(progress);
+    });
+    const offComplete = window.electronAPI.onConversionComplete((result) => {
+      setConversionProgress(null);
+      setConversionResult(result);
+      setActiveConversionMeta(null);
+    });
+
+    return () => {
+      offProgress();
+      offComplete();
+    };
+  }, []);
+
+  const handleConversionConfirm = useCallback(
+    (format: EncodingFormat, options: ConversionOptions) => {
+      if (conversionCandidates.length === 0) {
+        alert('没有可转换的视频文件');
+        return;
+      }
+      setConversionMenuOpen(false);
+      setConversionResult(null);
+      setConversionProgress(null);
+      setPendingConversionDraft({
+        format,
+        filePaths: conversionCandidates,
+        options: { ...options },
+      });
+      setLastConversionSelection({
+        format,
+        options: { ...options },
+      });
+      setConversionCandidates([]);
+    },
+    [conversionCandidates],
+  );
+
+  const handleCancelConversion = useCallback(() => {
+    window.electronAPI.cancelConversion().catch((error) => {
+      console.error('取消转码任务失败:', error);
+    });
+  }, []);
+
+  const handleCloseConversionResult = useCallback(() => {
+    setConversionResult(null);
+  }, []);
+
+  const handleOpenOutputDirectory = useCallback(() => {
+    if (!conversionResult) {
+      return;
+    }
+    window.electronAPI.openPath(conversionResult.outputDir).catch((error) => {
+      console.error('打开输出目录失败:', error);
+    });
+  }, [conversionResult]);
+
+  const handleViewConversionLog = useCallback(() => {
+    if (!conversionResult?.logPath) {
+      return;
+    }
+    window.electronAPI.openPath(conversionResult.logPath).catch((error) => {
+      console.error('打开转码日志失败:', error);
+    });
+  }, [conversionResult]);
 
   return (
     <div className="app">
@@ -255,8 +483,10 @@ function App() {
             <Toolbar
               onFindDuplicates={handleFindDuplicates}
               onFindSimilar={handleFindSimilar}
+              onOpenConversion={handleOpenConversionMenu}
               disabled={detecting}
               videoCount={filteredVideoFiles.length}
+              conversionCount={conversionCandidates.length > 0 ? conversionCandidates.length : filteredVideoFiles.length}
             />
 
             {/* 新的多维度过滤器面板 */}
@@ -268,10 +498,10 @@ function App() {
               filteredCount={filteredVideoFiles.length}
             />
 
-            {/* 选中文件提示 */}
-            {selectedFiles.size > 0 && (
+            {/* 转码提示 */}
+            {filteredVideoFiles.length > 0 && (
               <div className="selection-info-bar">
-                已选择 {selectedFiles.size} 个文件
+                视频转码将自动处理当前列表中的全部 {filteredVideoFiles.length} 个视频
               </div>
             )}
 
@@ -345,6 +575,34 @@ function App() {
           onClose={() => setSimilarityResult(null)}
         />
       )}
+
+      <ConversionMenu
+        open={isConversionMenuOpen}
+        disabled={conversionCandidates.length === 0}
+        fileCount={conversionCandidates.length}
+        initialFormat={lastConversionSelection.format}
+        initialOptions={lastConversionSelection.options}
+        onConfirm={handleConversionConfirm}
+        onClose={() => {
+          setConversionMenuOpen(false);
+          setConversionCandidates([]);
+        }}
+      />
+
+      <ConversionProgressDialog
+        open={Boolean(conversionProgress) && conversionProgress?.status === 'running'}
+        progress={conversionProgress}
+        format={activeConversionMeta?.format ?? null}
+        onCancel={handleCancelConversion}
+      />
+
+      <ConversionResultDialog
+        open={Boolean(conversionResult)}
+        result={conversionResult}
+        onClose={handleCloseConversionResult}
+        onOpenOutput={handleOpenOutputDirectory}
+        onViewLog={handleViewConversionLog}
+      />
     </div>
   );
 }

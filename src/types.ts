@@ -26,6 +26,67 @@ export interface FilterState {
   // frameRate?: FrameRateFilter;
 }
 
+// 视频编码格式
+export type EncodingFormat = 'h264' | 'h265';
+
+export type ConversionQuality = 'balanced' | 'high';
+export type AudioStrategy = 'copy' | 'aac';
+
+export interface ConversionOptions {
+  quality: ConversionQuality;
+  audioStrategy: AudioStrategy;
+  maxRetries: number;
+}
+
+export const DEFAULT_CONVERSION_OPTIONS: ConversionOptions = {
+  quality: 'balanced',
+  audioStrategy: 'copy',
+  maxRetries: 1,
+};
+
+// 转码请求
+export interface ConversionRequest {
+  format: EncodingFormat;
+  filePaths: string[];
+  outputDir: string;
+  options: ConversionOptions;
+}
+
+export interface ConversionFileSuccess {
+  input: string;
+  output: string;
+  durationMs: number;
+}
+
+export interface ConversionFileFailure {
+  input: string;
+  error: string;
+  attempts: number;
+}
+
+export interface ConversionProgress {
+  total: number;
+  processed: number;
+  successCount: number;
+  failureCount: number;
+  percentage: number;
+  currentFile?: string;
+  currentAttempt?: number;
+  maxAttempts?: number;
+  status: 'running' | 'completed' | 'cancelled';
+}
+
+export interface ConversionResult {
+  format: EncodingFormat;
+  outputDir: string;
+  success: ConversionFileSuccess[];
+  failures: ConversionFileFailure[];
+  cancelled: boolean;
+  elapsedMs: number;
+  options: ConversionOptions;
+  logPath: string;
+}
+
 // 过滤器配置元数据(支持泛型)
 export interface FilterDimension<T extends string = string> {
   key: string;                    // 过滤维度的唯一标识
@@ -128,6 +189,7 @@ export interface SimilarityOptions {
 
 export interface ElectronAPI {
   selectDirectory: () => Promise<string | undefined>;
+  selectOutputDirectory: () => Promise<string | undefined>;
   getVideoFiles: (dirPath: string) => Promise<VideoFile[]>;
   moveFile: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>;
   copyFile: (sourcePath: string, destPath: string) => Promise<{ success: boolean; error?: string }>;
@@ -136,6 +198,13 @@ export interface ElectronAPI {
   cancelDetection: (taskId: string) => Promise<void>;
   onDetectionProgress: (callback: (progress: DetectionProgress) => void) => () => void;
   deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+  onConversionMenuOpen: (callback: () => void) => () => void;
+  requestConversion: (request: ConversionRequest) => Promise<void>;
+  onConversionProgress: (callback: (progress: ConversionProgress) => void) => () => void;
+  onConversionComplete: (callback: (result: ConversionResult) => void) => () => void;
+  cancelConversion: () => Promise<void>;
+  openPath: (targetPath: string) => Promise<void>;
+  getConversionLogPath: () => Promise<string>;
 }
 
 declare global {

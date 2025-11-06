@@ -1,5 +1,23 @@
 # 更新日志
 
+## 2025-11-06
+
+### Added
+
+- **视频编码格式转换功能（H.264 / H.265）**（[方案文档](video-encoding-conversion-plan.md)）
+  - 在菜单栏新增 “工具 → 视频编码转换” 入口，支持下拉选择目标编码
+  - 批量转码流程：输出目录选择、进度对话框、取消操作与最终摘要
+  - 转码结果面板：展示成功/失败列表、耗时统计，并支持一键打开输出目录
+- 新增 `ConversionProgressDialog` 与 `ConversionResultDialog` 组件，提供转码过程的 UI 呈现
+
+### Technical
+
+- 新增 `electron/services/conversion-service.ts`，封装 ffmpeg 队列转码、命名冲突处理与日志记录
+- Electron 主进程扩展 IPC：`conversion-start`、`conversion-progress`、`conversion-complete`、`conversion-cancel`、`select-output-directory`、`open-path`
+- `preload.ts` 更新安全桥，向渲染进程暴露转码相关 API 与事件订阅
+- 引入 `logs/conversion.log` 日志记录机制，保存失败原因
+- 渲染层集成转码菜单、进度对话框、结果摘要及错误提示逻辑
+
 ## 2025-10-20
 
 ### Added
