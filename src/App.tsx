@@ -13,6 +13,10 @@ import {
   type ConversionProgress,
   type ConversionResult,
   type ConversionOptions,
+  type ContainerFormat,
+  type ContainerConversionRequest,
+  type ContainerConversionProgress,
+  type ContainerConversionResult,
 } from './types';
 import { filterVideoFiles, formatDuration } from './utils/filters';
 import Toolbar from './components/Toolbar';
@@ -23,11 +27,19 @@ import { FilterPanel } from './components/FilterPanel';
 import ConversionMenu from './components/ConversionMenu';
 import ConversionProgressDialog from './components/ConversionProgressDialog';
 import ConversionResultDialog from './components/ConversionResultDialog';
+import ContainerConversionMenu from './components/ContainerConversionMenu';
+import ContainerConversionProgressDialog from './components/ContainerConversionProgressDialog';
+import ContainerConversionResultDialog from './components/ContainerConversionResultDialog';
 
 type ConversionDraft = {
   format: EncodingFormat;
   filePaths: string[];
   options: ConversionOptions;
+};
+
+type ContainerConversionDraft = {
+  target: ContainerFormat;
+  filePaths: string[];
 };
 
 const formatFileSize = (bytes: number): string => {
@@ -60,6 +72,14 @@ function App() {
     options: { ...DEFAULT_CONVERSION_OPTIONS },
   }));
   const [conversionCandidates, setConversionCandidates] = useState<string[]>([]);
+  const [isContainerConversionMenuOpen, setContainerConversionMenuOpen] = useState(false);
+  const [containerConversionCandidates, setContainerConversionCandidates] = useState<string[]>([]);
+  const [pendingContainerConversionDraft, setPendingContainerConversionDraft] = useState<ContainerConversionDraft | null>(null);
+  const [containerConversionRequest, setContainerConversionRequest] = useState<ContainerConversionRequest | null>(null);
+  const [activeContainerConversionMeta, setActiveContainerConversionMeta] = useState<{ target: ContainerFormat; outputDir: string; total: number } | null>(null);
+  const [containerConversionProgress, setContainerConversionProgress] = useState<ContainerConversionProgress | null>(null);
+  const [containerConversionResult, setContainerConversionResult] = useState<ContainerConversionResult | null>(null);
+  const [lastContainerTarget, setLastContainerTarget] = useState<ContainerFormat>('mp4');
   
   // 多维度过滤器状态
   const [filters, setFilters] = useState<FilterState>({
@@ -161,12 +181,35 @@ function App() {
     setConversionMenuOpen(true);
   }, [conversionProgress, filteredVideoFiles]);
 
+  const handleOpenContainerConversionMenu = useCallback(() => {
+    if (containerConversionProgress && containerConversionProgress.status === 'running') {
+      alert('当前已有容器转换任务正在进行，请稍候再试');
+      return;
+    }
+
+    const candidates = filteredVideoFiles.map((file) => file.path);
+    if (candidates.length === 0) {
+      alert('当前列表中没有可转换的视频文件');
+      return;
+    }
+
+    setContainerConversionCandidates(candidates);
+    setContainerConversionMenuOpen(true);
+  }, [containerConversionProgress, filteredVideoFiles]);
+
   useEffect(() => {
     const unsubscribe = window.electronAPI.onConversionMenuOpen(() => {
       handleOpenConversionMenu();
     });
     return unsubscribe;
   }, [handleOpenConversionMenu]);
+
+  useEffect(() => {
+    const unsubscribe = window.electronAPI.onContainerConversionMenuOpen(() => {
+      handleOpenContainerConversionMenu();
+    });
+    return unsubscribe;
+  }, [handleOpenContainerConversionMenu]);
 
   // 处理"找相同"
   const handleFindDuplicates = async () => {
@@ -324,6 +367,44 @@ function App() {
   }, [pendingConversionDraft]);
 
   useEffect(() => {
+    if (!pendingContainerConversionDraft) {
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const outputDir = await window.electronAPI.selectOutputDirectory();
+        if (!outputDir || cancelled) {
+          return;
+        }
+
+        setContainerConversionRequest({
+          targetContainer: pendingContainerConversionDraft.target,
+          filePaths: pendingContainerConversionDraft.filePaths,
+          outputDir,
+        });
+        setActiveContainerConversionMeta({
+          target: pendingContainerConversionDraft.target,
+          outputDir,
+          total: pendingContainerConversionDraft.filePaths.length,
+        });
+      } catch (error) {
+        console.error('选择容器转换输出目录失败:', error);
+      } finally {
+        if (!cancelled) {
+          setPendingContainerConversionDraft(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingContainerConversionDraft]);
+
+  useEffect(() => {
     if (!conversionRequest) {
       return;
     }
@@ -391,6 +472,73 @@ function App() {
   }, [conversionRequest]);
 
   useEffect(() => {
+    if (!containerConversionRequest) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const initialProgress: ContainerConversionProgress = {
+      total: containerConversionRequest.filePaths.length,
+      processed: 0,
+      successCount: 0,
+      failureCount: 0,
+      percentage: containerConversionRequest.filePaths.length === 0 ? 100 : 0,
+      status: 'running',
+    };
+    setContainerConversionProgress(initialProgress);
+
+    const run = async () => {
+      try {
+        await window.electronAPI.requestContainerConversion(containerConversionRequest);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error('发起容器转换失败:', error);
+
+        let logPath = '';
+        try {
+          logPath = await window.electronAPI.getContainerConversionLogPath();
+        } catch (logError) {
+          console.error('获取容器转换日志路径失败:', logError);
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setContainerConversionProgress(null);
+        setContainerConversionResult({
+          targetContainer: containerConversionRequest.targetContainer,
+          outputDir: containerConversionRequest.outputDir,
+          success: [],
+          failures: containerConversionRequest.filePaths.map((input) => ({
+            input,
+            error: error instanceof Error ? error.message : String(error),
+            attempts: 0,
+          })),
+          cancelled: false,
+          elapsedMs: 0,
+          logPath,
+        });
+        setActiveContainerConversionMeta(null);
+      } finally {
+        if (!cancelled) {
+          setContainerConversionRequest(null);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [containerConversionRequest]);
+
+  useEffect(() => {
     const offProgress = window.electronAPI.onConversionProgress((progress) => {
       setConversionProgress(progress);
     });
@@ -398,6 +546,22 @@ function App() {
       setConversionProgress(null);
       setConversionResult(result);
       setActiveConversionMeta(null);
+    });
+
+    return () => {
+      offProgress();
+      offComplete();
+    };
+  }, []);
+
+  useEffect(() => {
+    const offProgress = window.electronAPI.onContainerConversionProgress((progress) => {
+      setContainerConversionProgress(progress);
+    });
+    const offComplete = window.electronAPI.onContainerConversionComplete((result) => {
+      setContainerConversionProgress(null);
+      setContainerConversionResult(result);
+      setActiveContainerConversionMeta(null);
     });
 
     return () => {
@@ -429,9 +593,35 @@ function App() {
     [conversionCandidates],
   );
 
+  const handleContainerConversionConfirm = useCallback(
+    (target: ContainerFormat) => {
+      if (containerConversionCandidates.length === 0) {
+        alert('没有可转换的视频文件');
+        return;
+      }
+
+      setContainerConversionMenuOpen(false);
+      setContainerConversionResult(null);
+      setContainerConversionProgress(null);
+      setPendingContainerConversionDraft({
+        target,
+        filePaths: containerConversionCandidates,
+      });
+      setLastContainerTarget(target);
+      setContainerConversionCandidates([]);
+    },
+    [containerConversionCandidates],
+  );
+
   const handleCancelConversion = useCallback(() => {
     window.electronAPI.cancelConversion().catch((error) => {
       console.error('取消转码任务失败:', error);
+    });
+  }, []);
+
+  const handleCancelContainerConversion = useCallback(() => {
+    window.electronAPI.cancelContainerConversion().catch((error) => {
+      console.error('取消容器转换任务失败:', error);
     });
   }, []);
 
@@ -456,6 +646,28 @@ function App() {
       console.error('打开转码日志失败:', error);
     });
   }, [conversionResult]);
+
+  const handleCloseContainerConversionResult = useCallback(() => {
+    setContainerConversionResult(null);
+  }, []);
+
+  const handleOpenContainerConversionOutput = useCallback(() => {
+    if (!containerConversionResult) {
+      return;
+    }
+    window.electronAPI.openPath(containerConversionResult.outputDir).catch((error) => {
+      console.error('打开容器转换输出目录失败:', error);
+    });
+  }, [containerConversionResult]);
+
+  const handleViewContainerConversionLog = useCallback(() => {
+    if (!containerConversionResult?.logPath) {
+      return;
+    }
+    window.electronAPI.openPath(containerConversionResult.logPath).catch((error) => {
+      console.error('打开容器转换日志失败:', error);
+    });
+  }, [containerConversionResult]);
 
   return (
     <div className="app">
@@ -484,9 +696,15 @@ function App() {
               onFindDuplicates={handleFindDuplicates}
               onFindSimilar={handleFindSimilar}
               onOpenConversion={handleOpenConversionMenu}
+              onOpenContainerConversion={handleOpenContainerConversionMenu}
               disabled={detecting}
               videoCount={filteredVideoFiles.length}
               conversionCount={conversionCandidates.length > 0 ? conversionCandidates.length : filteredVideoFiles.length}
+              containerConversionCount={
+                containerConversionCandidates.length > 0
+                  ? containerConversionCandidates.length
+                  : filteredVideoFiles.length
+              }
             />
 
             {/* 新的多维度过滤器面板 */}
@@ -576,6 +794,18 @@ function App() {
         />
       )}
 
+      <ContainerConversionMenu
+        open={isContainerConversionMenuOpen}
+        disabled={containerConversionCandidates.length === 0}
+        fileCount={containerConversionCandidates.length}
+        initialTarget={lastContainerTarget}
+        onConfirm={handleContainerConversionConfirm}
+        onClose={() => {
+          setContainerConversionMenuOpen(false);
+          setContainerConversionCandidates([]);
+        }}
+      />
+
       <ConversionMenu
         open={isConversionMenuOpen}
         disabled={conversionCandidates.length === 0}
@@ -602,6 +832,21 @@ function App() {
         onClose={handleCloseConversionResult}
         onOpenOutput={handleOpenOutputDirectory}
         onViewLog={handleViewConversionLog}
+      />
+
+      <ContainerConversionProgressDialog
+        open={Boolean(containerConversionProgress) && containerConversionProgress?.status === 'running'}
+        progress={containerConversionProgress}
+        target={activeContainerConversionMeta?.target ?? null}
+        onCancel={handleCancelContainerConversion}
+      />
+
+      <ContainerConversionResultDialog
+        open={Boolean(containerConversionResult)}
+        result={containerConversionResult}
+        onClose={handleCloseContainerConversionResult}
+        onOpenOutput={handleOpenContainerConversionOutput}
+        onViewLog={handleViewContainerConversionLog}
       />
     </div>
   );

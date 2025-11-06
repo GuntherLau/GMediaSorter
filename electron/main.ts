@@ -7,7 +7,17 @@ import pLimit from 'p-limit';
 import { DuplicateDetectorService } from './services/duplicate-detector';
 import { SimilarityDetectorService } from './services/similarity-detector';
 import { ConversionService } from './services/conversion-service';
-import { VideoFile, SimilarityOptions, DetectionProgress, ConversionRequest, ConversionProgress } from '../src/types';
+import {
+  VideoFile,
+  SimilarityOptions,
+  DetectionProgress,
+  ConversionRequest,
+  ConversionProgress,
+  ContainerConversionRequest,
+  ContainerConversionProgress,
+  ContainerConversionResult,
+} from '../src/types';
+import { ContainerConversionService } from './services/container-conversion-service';
 
 const ffprobePath = ffprobeStatic.path.replace('app.asar', 'app.asar.unpacked');
 ffmpeg.setFfprobePath(ffprobePath);
@@ -45,6 +55,14 @@ function createAppMenu() {
           click: () => {
             if (mainWindow) {
               mainWindow.webContents.send('menu:open-conversion-menu');
+            }
+          },
+        },
+        {
+          label: '容器格式转换',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('menu:open-container-conversion-menu');
             }
           },
         },
@@ -294,6 +312,7 @@ ipcMain.handle('detect-duplicates', async (event: IpcMainInvokeEvent, files: Vid
 // 相似检测服务实例
 const similarityDetector = new SimilarityDetectorService();
 const conversionService = new ConversionService();
+const containerConversionService = new ContainerConversionService();
 
 ipcMain.handle('detect-similarity', async (event: IpcMainInvokeEvent, files: VideoFile[], options: SimilarityOptions) => {
   try {
@@ -351,6 +370,26 @@ ipcMain.handle('conversion-cancel', async () => {
   conversionService.cancel();
 });
 
+ipcMain.handle('container-conversion-start', async (event: IpcMainInvokeEvent, request: ContainerConversionRequest) => {
+  try {
+    const result: ContainerConversionResult = await containerConversionService.convert(
+      request,
+      (progress: ContainerConversionProgress) => {
+        event.sender.send('container-conversion-progress', progress);
+      },
+    );
+    event.sender.send('container-conversion-complete', result);
+    return result;
+  } catch (error) {
+    console.error('Error during container conversion:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('container-conversion-cancel', async () => {
+  containerConversionService.cancel();
+});
+
 ipcMain.handle('open-path', async (_event: IpcMainInvokeEvent, targetPath: string) => {
   if (!targetPath) {
     return '';
@@ -368,6 +407,15 @@ ipcMain.handle('get-conversion-log-path', async () => {
     return ConversionService.getLogPath();
   } catch (error) {
     console.error('Error getting conversion log path:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-container-conversion-log-path', async () => {
+  try {
+    return ContainerConversionService.getLogPath();
+  } catch (error) {
+    console.error('Error getting container conversion log path:', error);
     throw error;
   }
 });

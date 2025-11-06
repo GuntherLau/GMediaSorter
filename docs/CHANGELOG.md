@@ -9,6 +9,12 @@
   - 批量转码流程：输出目录选择、进度对话框、取消操作与最终摘要
   - 转码结果面板：展示成功/失败列表、耗时统计，并支持一键打开输出目录
 - 新增 `ConversionProgressDialog` 与 `ConversionResultDialog` 组件，提供转码过程的 UI 呈现
+- **容器格式转换功能（MP4 / MKV）**（[方案文档](container-format-conversion-plan.md)）
+  - 菜单栏与工具栏新增“容器转换”入口，复用统一的转换交互体验
+  - 支持输出目录选择、进度对话框、取消操作与结果摘要（成功/失败列表）
+  - 无损封装转换（`ffmpeg -c copy`），保持原视频编码与音频流
+  - 命名冲突自动追加后缀，日志写入 `logs/container-conversion.log`
+  - 若源文件已为目标容器，自动跳过 remux 执行快速复制
 
 ### Technical
 
@@ -17,6 +23,9 @@
 - `preload.ts` 更新安全桥，向渲染进程暴露转码相关 API 与事件订阅
 - 引入 `logs/conversion.log` 日志记录机制，保存失败原因
 - 渲染层集成转码菜单、进度对话框、结果摘要及错误提示逻辑
+- 新增 `electron/services/container-conversion-service.ts` 与前端 UI 组件，串联端到端容器转换流程
+- 在主进程注册 `container-conversion-*` IPC 管道并复用输出目录/日志能力
+- 引入 `vitest` 测试脚手架，新增 `electron/services/__tests__/container-conversion-service.test.ts` 覆盖成功/失败/取消场景
 
 ## 2025-10-20
 

@@ -28,6 +28,7 @@ export interface FilterState {
 
 // 视频编码格式
 export type EncodingFormat = 'h264' | 'h265';
+export type ContainerFormat = 'mp4' | 'mkv';
 
 export type ConversionQuality = 'balanced' | 'high';
 export type AudioStrategy = 'copy' | 'aac';
@@ -84,6 +85,44 @@ export interface ConversionResult {
   cancelled: boolean;
   elapsedMs: number;
   options: ConversionOptions;
+  logPath: string;
+}
+
+export interface ContainerConversionRequest {
+  targetContainer: ContainerFormat;
+  filePaths: string[];
+  outputDir: string;
+}
+
+export interface ContainerConversionFileSuccess {
+  input: string;
+  output: string;
+  durationMs: number;
+}
+
+export interface ContainerConversionFileFailure {
+  input: string;
+  error: string;
+  attempts: number;
+}
+
+export interface ContainerConversionProgress {
+  total: number;
+  processed: number;
+  successCount: number;
+  failureCount: number;
+  percentage: number;
+  currentFile?: string;
+  status: 'running' | 'completed' | 'cancelled';
+}
+
+export interface ContainerConversionResult {
+  targetContainer: ContainerFormat;
+  outputDir: string;
+  success: ContainerConversionFileSuccess[];
+  failures: ContainerConversionFileFailure[];
+  cancelled: boolean;
+  elapsedMs: number;
   logPath: string;
 }
 
@@ -203,8 +242,14 @@ export interface ElectronAPI {
   onConversionProgress: (callback: (progress: ConversionProgress) => void) => () => void;
   onConversionComplete: (callback: (result: ConversionResult) => void) => () => void;
   cancelConversion: () => Promise<void>;
+  onContainerConversionMenuOpen: (callback: () => void) => () => void;
+  requestContainerConversion: (request: ContainerConversionRequest) => Promise<void>;
+  onContainerConversionProgress: (callback: (progress: ContainerConversionProgress) => void) => () => void;
+  onContainerConversionComplete: (callback: (result: ContainerConversionResult) => void) => () => void;
+  cancelContainerConversion: () => Promise<void>;
   openPath: (targetPath: string) => Promise<void>;
   getConversionLogPath: () => Promise<string>;
+  getContainerConversionLogPath: () => Promise<string>;
 }
 
 declare global {

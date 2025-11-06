@@ -1,5 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { VideoFile, SimilarityOptions, ConversionRequest, ConversionProgress, ConversionResult } from '../src/types';
+import {
+  VideoFile,
+  SimilarityOptions,
+  ConversionRequest,
+  ConversionProgress,
+  ConversionResult,
+  ContainerConversionRequest,
+  ContainerConversionProgress,
+  ContainerConversionResult,
+} from '../src/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
@@ -40,6 +49,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.off('conversion-complete', listener);
   },
   cancelConversion: () => ipcRenderer.invoke('conversion-cancel'),
+  onContainerConversionMenuOpen: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('menu:open-container-conversion-menu', listener);
+    return () => ipcRenderer.off('menu:open-container-conversion-menu', listener);
+  },
+  requestContainerConversion: (request: ContainerConversionRequest) =>
+    ipcRenderer.invoke('container-conversion-start', request),
+  onContainerConversionProgress: (callback: (progress: ContainerConversionProgress) => void) => {
+    const listener = (_event: unknown, progress: ContainerConversionProgress) => callback(progress);
+    ipcRenderer.on('container-conversion-progress', listener);
+    return () => ipcRenderer.off('container-conversion-progress', listener);
+  },
+  onContainerConversionComplete: (callback: (result: ContainerConversionResult) => void) => {
+    const listener = (_event: unknown, result: ContainerConversionResult) => callback(result);
+    ipcRenderer.on('container-conversion-complete', listener);
+    return () => ipcRenderer.off('container-conversion-complete', listener);
+  },
+  cancelContainerConversion: () => ipcRenderer.invoke('container-conversion-cancel'),
   openPath: (targetPath: string) => ipcRenderer.invoke('open-path', targetPath),
   getConversionLogPath: () => ipcRenderer.invoke('get-conversion-log-path'),
+  getContainerConversionLogPath: () => ipcRenderer.invoke('get-container-conversion-log-path'),
 });

@@ -229,3 +229,10 @@
   border-radius: 8px;
   padding: 8px 10px;
 }
+
+.conversion-menu-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+}

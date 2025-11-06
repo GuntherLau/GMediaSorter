@@ -5,20 +5,25 @@ interface ToolbarProps {
   onFindDuplicates: () => void;
   onFindSimilar: () => void;
   onOpenConversion: () => void;
+  onOpenContainerConversion: () => void;
   disabled?: boolean;
   videoCount: number;
   conversionCount: number;
+  containerConversionCount: number;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ 
   onFindDuplicates, 
   onFindSimilar, 
   onOpenConversion,
+  onOpenContainerConversion,
   disabled = false,
   videoCount,
   conversionCount,
+  containerConversionCount,
 }) => {
   const conversionDisabled = disabled || conversionCount === 0;
+  const containerConversionDisabled = disabled || containerConversionCount === 0;
 
   return (
     <div className="toolbar">
@@ -31,6 +36,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
         >
           <span className="toolbar-btn-icon">🎞️</span>
           视频转码
+        </button>
+        <button
+          className="toolbar-btn"
+          onClick={onOpenContainerConversion}
+          disabled={containerConversionDisabled}
+          title={containerConversionCount === 0 ? '当前没有可转换的视频' : '批量调整视频封装格式'}
+        >
+          <span className="toolbar-btn-icon">📦</span>
+          容器转换
         </button>
         <button 
           className="toolbar-btn" 
@@ -52,7 +66,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </button>
       </div>
       <div className="toolbar-info">
-        共 {videoCount} 个视频{conversionCount > 0 ? ' · 转码将处理全部视频' : ''}
+        共 {videoCount} 个视频{videoCount > 0 ? ' · 批量操作将处理当前列表' : ''}
       </div>
     </div>
   );
