@@ -33,6 +33,10 @@ import ContainerConversionMenu from './components/ContainerConversionMenu';
 import ContainerConversionProgressDialog from './components/ContainerConversionProgressDialog';
 import ContainerConversionResultDialog from './components/ContainerConversionResultDialog';
 import VideoPlayer from './components/VideoPlayer';
+import VideoMosaicPrototype, {
+  type VideoMosaicSource,
+  type MosaicPerformancePreset,
+} from './components/VideoMosaicPrototype';
 
 type ConversionDraft = {
   format: EncodingFormat;
@@ -52,6 +56,29 @@ const DEFAULT_PLAYER_PREFERENCES: PlayerPreferences = {
   loop: false,
   defaultPlaybackRate: 1,
 };
+
+const MOSAIC_CONFIG_KEY = 'gms-mosaic-config';
+type MosaicConfig = {
+  columns: number;
+  performancePreset: MosaicPerformancePreset;
+};
+
+const DEFAULT_MOSAIC_CONFIG: MosaicConfig = {
+  columns: 3,
+  performancePreset: 'medium',
+};
+
+type MosaicState = {
+  sources: VideoMosaicSource[];
+  loading: boolean;
+  error: string | null;
+};
+
+const createInitialMosaicState = (): MosaicState => ({
+  sources: [],
+  loading: false,
+  error: null,
+});
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
@@ -113,24 +140,160 @@ function App() {
     }
     return { ...DEFAULT_PLAYER_PREFERENCES };
   });
+  const [showMosaicPrototype, setShowMosaicPrototype] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.location.hash === '#mosaic-prototype';
+  });
+  const [mosaicState, setMosaicState] = useState<MosaicState>(() => createInitialMosaicState());
+  const [mosaicConfig, setMosaicConfig] = useState<MosaicConfig>(() => {
+    if (typeof window === 'undefined') {
+      return { ...DEFAULT_MOSAIC_CONFIG };
+    }
+    try {
+      const stored = window.localStorage.getItem(MOSAIC_CONFIG_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<MosaicConfig>;
+        const normalized: MosaicConfig = {
+          columns:
+            typeof parsed.columns === 'number' && parsed.columns > 0
+              ? parsed.columns
+              : DEFAULT_MOSAIC_CONFIG.columns,
+          performancePreset:
+            parsed.performancePreset === 'low' || parsed.performancePreset === 'high'
+              ? parsed.performancePreset
+              : DEFAULT_MOSAIC_CONFIG.performancePreset,
+        } satisfies MosaicConfig;
+        return normalized;
+      }
+    } catch {
+      // ignore storage failure
+    }
+    return { ...DEFAULT_MOSAIC_CONFIG };
+  });
   
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleHashChange = () => {
+      const shouldShow = window.location.hash === '#mosaic-prototype';
+      setShowMosaicPrototype(shouldShow);
+      if (!shouldShow) {
+        setMosaicState(createInitialMosaicState());
+      }
+    };
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(MOSAIC_CONFIG_KEY, JSON.stringify(mosaicConfig));
+    } catch {
+      // ignore storage failure
+    }
+  }, [mosaicConfig]);
+
+  const handleCloseMosaicPrototype = useCallback(() => {
+    setShowMosaicPrototype(false);
+    setMosaicState(createInitialMosaicState());
+    if (typeof window !== 'undefined' && window.location.hash === '#mosaic-prototype') {
+      window.location.hash = '';
+    }
+  }, []);
+
+  const handleMosaicColumnsChange = useCallback((columns: number) => {
+    setMosaicConfig((prev) => {
+      const nextColumns = columns > 0 ? columns : DEFAULT_MOSAIC_CONFIG.columns;
+      if (prev.columns === nextColumns) {
+        return prev;
+      }
+      return {
+        columns: nextColumns,
+        performancePreset: prev.performancePreset,
+      } satisfies MosaicConfig;
+    });
+  }, []);
+
+  const handleMosaicPerformanceChange = useCallback((preset: MosaicPerformancePreset) => {
+    setMosaicConfig((prev) => {
+      if (prev.performancePreset === preset) {
+        return prev;
+      }
+      return {
+        columns: prev.columns,
+        performancePreset: preset,
+      } satisfies MosaicConfig;
+    });
+  }, []);
+
   // 多维度过滤器状态
   const [filters, setFilters] = useState<FilterState>({
     resolution: 'all',
     duration: 'all',
   });
-  
+
+  // 过滤后的视频文件列表
+  const filteredVideoFiles = useMemo(() => {
+    return filterVideoFiles(videoFiles, filters);
+  }, [videoFiles, filters]);
+
+  const handleOpenMosaic = useCallback(async () => {
+    if (filteredVideoFiles.length === 0) {
+      alert('当前列表中没有可用于拼墙的视频，请调整过滤条件或重新加载目录。');
+      return;
+    }
+
+    setMosaicState({
+      sources: [],
+      loading: true,
+      error: null,
+    });
+    setShowMosaicPrototype(true);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#mosaic-prototype';
+    }
+
+    try {
+      const previews = await Promise.all(
+        filteredVideoFiles.map((file) => window.electronAPI.openFilePreview(file.path))
+      );
+      const sources: VideoMosaicSource[] = previews.map((preview) => ({
+        id: preview.filePath,
+        src: preview.url,
+        title: preview.fileName,
+        duration: preview.metadata?.duration ?? null,
+        width: preview.metadata?.width ?? null,
+        height: preview.metadata?.height ?? null,
+      }));
+
+      setMosaicState({
+        sources,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      console.error('加载拼墙视频失败:', error);
+      setMosaicState({
+        sources: [],
+        loading: false,
+        error: error instanceof Error ? error.message : '拼墙资源加载失败',
+      });
+    }
+  }, [filteredVideoFiles]);
+
   // 检测相关状态
   const [detecting, setDetecting] = useState(false);
   const [detectionProgress, setDetectionProgress] = useState<DetectionProgress | null>(null);
   const [duplicateResult, setDuplicateResult] = useState<DuplicateResult | null>(null);
   const [similarityResult, setSimilarityResult] = useState<SimilarityResult | null>(null);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
-
-  // 过滤后的视频文件列表
-  const filteredVideoFiles = useMemo(() => {
-    return filterVideoFiles(videoFiles, filters);
-  }, [videoFiles, filters]);
 
   const handleSelectDirectory = async () => {
     try {
@@ -729,6 +892,19 @@ function App() {
     });
   }, [containerConversionResult]);
 
+  if (showMosaicPrototype) {
+    return (
+      <VideoMosaicPrototype
+        sources={mosaicState.sources}
+        isLoading={mosaicState.loading}
+        error={mosaicState.error}
+        onExit={handleCloseMosaicPrototype}
+        columns={mosaicConfig.columns}
+        performancePreset={mosaicConfig.performancePreset}
+      />
+    );
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -757,6 +933,7 @@ function App() {
               onFindSimilar={handleFindSimilar}
               onOpenConversion={handleOpenConversionMenu}
               onOpenContainerConversion={handleOpenContainerConversionMenu}
+              onOpenMosaic={handleOpenMosaic}
               disabled={detecting}
               videoCount={filteredVideoFiles.length}
               conversionCount={conversionCandidates.length > 0 ? conversionCandidates.length : filteredVideoFiles.length}
@@ -765,6 +942,12 @@ function App() {
                   ? containerConversionCandidates.length
                   : filteredVideoFiles.length
               }
+              mosaicSourceCount={filteredVideoFiles.length}
+              mosaicLoading={mosaicState.loading}
+              mosaicColumns={mosaicConfig.columns}
+              onMosaicColumnsChange={handleMosaicColumnsChange}
+              mosaicPerformancePreset={mosaicConfig.performancePreset}
+              onMosaicPerformanceChange={handleMosaicPerformanceChange}
             />
 
             {/* 新的多维度过滤器面板 */}

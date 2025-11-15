@@ -21,7 +21,8 @@ docs/
 ├── 📐 设计文档
 │   ├── video-resolution-filter-plan.md       分辨率过滤设计
 │   ├── duplicate-similarity-detection-plan.md 去重与相似检测设计
-│   └── container-format-conversion-plan.md   容器格式转换方案
+│   ├── container-format-conversion-plan.md   容器格式转换方案
+│   └── dynamic-video-mosaic-plan.md          动态视频拼墙方案
 │
 ├── 🚢 部署文档
 │   ├── DEPLOYMENT.md          部署指南 - 打包和发布流程
@@ -67,6 +68,7 @@ docs/
 - [视频时长过滤与多条件过滤器](video-duration-filter-plan.md) - 时长过滤及可扩展的多维度过滤器架构
 - [视频去重与相似检测](duplicate-similarity-detection-plan.md) - 重复和相似视频检测的完整方案
 - [容器格式转换](container-format-conversion-plan.md) - 批量容器封装转换的设计与任务拆解
+- [动态视频拼墙](dynamic-video-mosaic-plan.md) - 全屏瀑布流视频墙的需求与实施规划
 
 ### 技术栈
 
@@ -130,6 +132,7 @@ docs/
 | video-resolution-filter-plan.md | ✅ 完成 | 2025-10-21 |
 | duplicate-similarity-detection-plan.md | ✅ 完成 | 2025-10-21 |
 | container-format-conversion-plan.md | ✅ 完成 | 2025-11-06 |
+| dynamic-video-mosaic-plan.md | 🆕 进行中 | 2025-11-15 |
 | CHANGELOG.md | ✅ 完成 | 2025-11-06 |
 
 ## 🤝 贡献文档
