@@ -8,6 +8,8 @@ import {
   ContainerConversionRequest,
   ContainerConversionProgress,
   ContainerConversionResult,
+  VideoPreviewSource,
+  VideoPreviewMetadata,
 } from '../src/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -70,4 +72,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openPath: (targetPath: string) => ipcRenderer.invoke('open-path', targetPath),
   getConversionLogPath: () => ipcRenderer.invoke('get-conversion-log-path'),
   getContainerConversionLogPath: () => ipcRenderer.invoke('get-container-conversion-log-path'),
+  openFilePreview: (filePath: string) => ipcRenderer.invoke('open-file-preview', filePath) as Promise<VideoPreviewSource>,
+  getVideoMetadata: (filePath: string) => ipcRenderer.invoke('get-video-metadata', filePath) as Promise<VideoPreviewMetadata | null>,
 });

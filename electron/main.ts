@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent, Menu, MenuItemConstructorOptions, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent, Menu, MenuItemConstructorOptions, shell, protocol } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import ffmpeg from 'fluent-ffmpeg';
@@ -19,6 +19,19 @@ import {
 } from '../src/types';
 import { ContainerConversionService } from './services/container-conversion-service';
 
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'gms-media',
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
+
 const ffprobePath = ffprobeStatic.path.replace('app.asar', 'app.asar.unpacked');
 ffmpeg.setFfprobePath(ffprobePath);
 
@@ -34,6 +47,9 @@ interface VideoMetadata {
   aspectRatio: string | null;
   resolutionLabel: ResolutionLabel | null;
   effectiveVerticalResolution: number | null;
+  codecName: string | null;
+  formatName: string | null;
+  bitRate: number | null;
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -41,6 +57,36 @@ let mainWindow: BrowserWindow | null = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 const probeLimit = pLimit(PROBE_CONCURRENCY);
+const previewAllowList = new Set<string>();
+
+function registerMediaProtocol() {
+  protocol.registerFileProtocol('gms-media', (request, callback) => {
+    try {
+      const requestUrl = new URL(request.url);
+      const rawPath = requestUrl.searchParams.get('file');
+      if (!rawPath) {
+        callback({ error: -6 });
+        return;
+      }
+
+      const normalizedPath = path.normalize(rawPath);
+      if (!path.isAbsolute(normalizedPath)) {
+        callback({ error: -6 });
+        return;
+      }
+
+      if (!previewAllowList.has(normalizedPath)) {
+        callback({ error: -10 });
+        return;
+      }
+
+      callback({ path: normalizedPath });
+    } catch (error) {
+      console.error('Failed to resolve media protocol request:', error);
+      callback({ error: -2 });
+    }
+  });
+}
 
 function createAppMenu() {
   const template: MenuItemConstructorOptions[] = [
@@ -123,6 +169,9 @@ async function probeVideoMetadata(filePath: string): Promise<VideoMetadata> {
             aspectRatio: null,
             resolutionLabel: null,
             effectiveVerticalResolution: null,
+            codecName: null,
+            formatName: null,
+            bitRate: null,
           });
           return;
         }
@@ -142,6 +191,14 @@ async function probeVideoMetadata(filePath: string): Promise<VideoMetadata> {
 
         const { resolutionLabel, effectiveVerticalResolution } = calculateResolutionLabel(width, height);
 
+        const codecName = videoStream?.codec_name ?? null;
+        const formatName = data.format?.format_name ?? null;
+        const bitRate = typeof data.format?.bit_rate === 'number'
+          ? data.format.bit_rate
+          : typeof data.format?.bit_rate === 'string'
+          ? Number.parseInt(data.format.bit_rate, 10)
+          : null;
+
         resolve({
           width,
           height,
@@ -149,6 +206,9 @@ async function probeVideoMetadata(filePath: string): Promise<VideoMetadata> {
           aspectRatio,
           resolutionLabel,
           effectiveVerticalResolution,
+          codecName,
+          formatName,
+          bitRate,
         });
       });
     }),
@@ -179,6 +239,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  registerMediaProtocol();
   createWindow();
   createAppMenu();
 
@@ -417,5 +478,65 @@ ipcMain.handle('get-container-conversion-log-path', async () => {
   } catch (error) {
     console.error('Error getting container conversion log path:', error);
     throw error;
+  }
+});
+
+ipcMain.handle('open-file-preview', async (_event: IpcMainInvokeEvent, targetPath: string) => {
+  if (typeof targetPath !== 'string' || targetPath.trim() === '') {
+    throw new Error('无效的文件路径');
+  }
+
+  const normalizedPath = path.normalize(targetPath);
+
+  try {
+    const stats = await fs.stat(normalizedPath);
+    const metadata = await probeVideoMetadata(normalizedPath);
+    const previewUrl = new URL('gms-media://preview');
+    previewUrl.searchParams.set('file', normalizedPath);
+    previewAllowList.add(normalizedPath);
+
+    return {
+      url: previewUrl.toString(),
+      filePath: normalizedPath,
+      fileName: path.basename(normalizedPath),
+      stats: {
+        size: stats.size,
+        modified: stats.mtime.toISOString(),
+      },
+      metadata: {
+        duration: metadata.duration ?? undefined,
+        width: metadata.width ?? undefined,
+        height: metadata.height ?? undefined,
+        aspectRatio: metadata.aspectRatio,
+        codec: metadata.codecName,
+        formatName: metadata.formatName,
+        bitRate: metadata.bitRate,
+      },
+    };
+  } catch (error) {
+    console.error('Error preparing file preview:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('get-video-metadata', async (_event: IpcMainInvokeEvent, targetPath: string) => {
+  if (typeof targetPath !== 'string' || targetPath.trim() === '') {
+    return null;
+  }
+
+  try {
+    const metadata = await probeVideoMetadata(path.normalize(targetPath));
+    return {
+      duration: metadata.duration ?? undefined,
+      width: metadata.width ?? undefined,
+      height: metadata.height ?? undefined,
+      aspectRatio: metadata.aspectRatio,
+      codec: metadata.codecName,
+      formatName: metadata.formatName,
+      bitRate: metadata.bitRate,
+    };
+  } catch (error) {
+    console.error('Error probing video metadata:', error);
+    return null;
   }
 });

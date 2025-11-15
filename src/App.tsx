@@ -17,6 +17,8 @@ import {
   type ContainerConversionRequest,
   type ContainerConversionProgress,
   type ContainerConversionResult,
+  type VideoPreviewSource,
+  type PlayerPreferences,
 } from './types';
 import { filterVideoFiles, formatDuration } from './utils/filters';
 import Toolbar from './components/Toolbar';
@@ -30,6 +32,7 @@ import ConversionResultDialog from './components/ConversionResultDialog';
 import ContainerConversionMenu from './components/ContainerConversionMenu';
 import ContainerConversionProgressDialog from './components/ContainerConversionProgressDialog';
 import ContainerConversionResultDialog from './components/ContainerConversionResultDialog';
+import VideoPlayer from './components/VideoPlayer';
 
 type ConversionDraft = {
   format: EncodingFormat;
@@ -40,6 +43,14 @@ type ConversionDraft = {
 type ContainerConversionDraft = {
   target: ContainerFormat;
   filePaths: string[];
+};
+
+const PLAYER_PREFERENCES_KEY = 'gms-player-preferences';
+const DEFAULT_PLAYER_PREFERENCES: PlayerPreferences = {
+  autoPlay: true,
+  rememberProgress: true,
+  loop: false,
+  defaultPlaybackRate: 1,
 };
 
 const formatFileSize = (bytes: number): string => {
@@ -80,6 +91,28 @@ function App() {
   const [containerConversionProgress, setContainerConversionProgress] = useState<ContainerConversionProgress | null>(null);
   const [containerConversionResult, setContainerConversionResult] = useState<ContainerConversionResult | null>(null);
   const [lastContainerTarget, setLastContainerTarget] = useState<ContainerFormat>('mp4');
+  const [playerState, setPlayerState] = useState<{ visible: boolean; source: VideoPreviewSource | null }>({
+    visible: false,
+    source: null,
+  });
+  const [playerPreferences, setPlayerPreferences] = useState<PlayerPreferences>(() => {
+    if (typeof window === 'undefined') {
+      return { ...DEFAULT_PLAYER_PREFERENCES };
+    }
+    try {
+      const stored = window.localStorage.getItem(PLAYER_PREFERENCES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<PlayerPreferences>;
+        return {
+          ...DEFAULT_PLAYER_PREFERENCES,
+          ...parsed,
+        } satisfies PlayerPreferences;
+      }
+    } catch {
+      // ignore storage failures
+    }
+    return { ...DEFAULT_PLAYER_PREFERENCES };
+  });
   
   // 多维度过滤器状态
   const [filters, setFilters] = useState<FilterState>({
@@ -300,6 +333,32 @@ function App() {
     }
   };
 
+  const handleOpenPlayer = useCallback(async (file: VideoFile) => {
+    try {
+      const preview = await window.electronAPI.openFilePreview(file.path);
+      setPlayerState({ visible: true, source: preview });
+    } catch (error) {
+      console.error('Error opening video preview:', error);
+      alert('播放失败：请检查文件是否存在或是否具备读取权限');
+    }
+  }, []);
+
+  const handleClosePlayer = useCallback(() => {
+    setPlayerState({ visible: false, source: null });
+  }, []);
+
+  const handlePlayerPreferencesChange = useCallback((prefs: PlayerPreferences) => {
+    setPlayerPreferences(prefs);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PLAYER_PREFERENCES_KEY, JSON.stringify(playerPreferences));
+    } catch {
+      // ignore storage failures
+    }
+  }, [playerPreferences]);
+
   // 删除文件
   const handleDeleteFiles = async (files: VideoFile[]) => {
     const errors: string[] = [];
@@ -325,8 +384,9 @@ function App() {
     }
 
     // 关闭结果面板
-      setDuplicateResult(null);
-    };
+    setDuplicateResult(null);
+    setSimilarityResult(null);
+  };
 
   useEffect(() => {
     if (!pendingConversionDraft) {
@@ -753,6 +813,17 @@ function App() {
                         </p>
                       )}
                     </div>
+                    <div className="video-card-actions">
+                      <button
+                        className="video-card-play"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleOpenPlayer(file);
+                        }}
+                      >
+                        播放
+                      </button>
+                    </div>
                     {selectedFiles.has(file.path) && <div className="selected-indicator">✓</div>}
                   </div>
                 ))}
@@ -847,6 +918,14 @@ function App() {
         onClose={handleCloseContainerConversionResult}
         onOpenOutput={handleOpenContainerConversionOutput}
         onViewLog={handleViewContainerConversionLog}
+      />
+
+      <VideoPlayer
+        open={playerState.visible}
+        source={playerState.source}
+        preferences={playerPreferences}
+        onClose={handleClosePlayer}
+        onUpdatePreferences={handlePlayerPreferencesChange}
       />
     </div>
   );

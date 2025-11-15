@@ -126,6 +126,34 @@ export interface ContainerConversionResult {
   logPath: string;
 }
 
+export interface VideoPreviewMetadata {
+  duration?: number;
+  width?: number;
+  height?: number;
+  aspectRatio?: string | null;
+  codec?: string | null;
+  formatName?: string | null;
+  bitRate?: number | null;
+}
+
+export interface VideoPreviewSource {
+  url: string;
+  filePath: string;
+  fileName: string;
+  stats: {
+    size: number;
+    modified: string;
+  };
+  metadata?: VideoPreviewMetadata | null;
+}
+
+export interface PlayerPreferences {
+  autoPlay: boolean;
+  rememberProgress: boolean;
+  loop: boolean;
+  defaultPlaybackRate: number;
+}
+
 // 过滤器配置元数据(支持泛型)
 export interface FilterDimension<T extends string = string> {
   key: string;                    // 过滤维度的唯一标识
@@ -250,6 +278,8 @@ export interface ElectronAPI {
   openPath: (targetPath: string) => Promise<void>;
   getConversionLogPath: () => Promise<string>;
   getContainerConversionLogPath: () => Promise<string>;
+  openFilePreview: (filePath: string) => Promise<VideoPreviewSource>;
+  getVideoMetadata: (filePath: string) => Promise<VideoPreviewMetadata | null>;
 }
 
 declare global {

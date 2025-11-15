@@ -1,0 +1,127 @@
+.video-player-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.75);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 1200;
+}
+
+.video-player-panel {
+  width: min(520px, 100%);
+  background: #111827;
+  color: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.3);
+}
+
+.video-player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.video-player-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.video-player-subtitle {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
+.video-player-close {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.video-player-close:hover {
+  color: #fff;
+}
+
+.video-player-main {
+  position: relative;
+  padding: 20px;
+}
+
+.video-player-main video {
+  width: 100%;
+  max-height: 320px;
+  border-radius: 8px;
+  background: #000;
+}
+
+.video-player-controls {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.video-player-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.video-player-btn {
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.85);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.video-player-btn:hover {
+  background: rgba(37, 99, 235, 0.95);
+}
+
+.video-player-progress {
+  width: 100%;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.video-player-progress input[type='range'] {
+  flex: 1;
+}
+
+.video-player-settings label,
+.video-player-preferences label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.video-player-settings input[type='range'] {
+  width: 120px;
+}
+
+.video-player-preferences {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.video-player-preferences input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 720px) {
+  .video-player-panel {
+    width: 100%;
+  }
+}
