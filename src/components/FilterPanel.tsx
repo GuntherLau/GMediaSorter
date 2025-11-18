@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import type { FilterState } from '../types';
-import { resolutionDimension, durationDimension } from '../config/filters';
+import { resolutionDimension, durationDimension, aspectRatioDimension } from '../config/filters';
 import { FilterDimension } from './FilterDimension';
 import { FilterSummary } from './FilterSummary';
 import { hasActiveFilters } from '../utils/filters';
@@ -27,6 +27,12 @@ export interface FilterPanelProps {
   totalCount: number;
   /** 过滤后的数量 */
   filteredCount: number;
+  /** 长宽比过滤时的额外提示，如未知数据统计 */
+  aspectRatioNotice?: string | null;
+  /** 当前列表中未知长宽比的视频数量，用于快捷筛选 */
+  unknownAspectRatioCount: number;
+  /** 切换“仅查看未知”快捷筛选 */
+  onToggleUnknownAspectRatio: () => void;
 }
 
 /**
@@ -53,12 +59,41 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   onClearAll,
   totalCount,
   filteredCount,
+  aspectRatioNotice = null,
+  unknownAspectRatioCount,
+  onToggleUnknownAspectRatio,
 }) => {
   // 折叠状态（默认展开）
   const [expanded, setExpanded] = useState(true);
   
   // 是否有激活的过滤器
   const hasFilters = hasActiveFilters(filters);
+  const isUnknownOnlyActive = filters.aspectRatio === 'unknown';
+
+  // 记录当前激活的过滤维度标签，帮助摘要区域展示更详细信息
+  const activeLabels: string[] = [];
+  if (filters.resolution !== 'all') {
+    const option = resolutionDimension.options.find((item) => item.value === filters.resolution);
+    if (option) {
+      activeLabels.push(`${resolutionDimension.label}：${option.label}`);
+    }
+  }
+  if (filters.duration !== 'all') {
+    const option = durationDimension.options.find((item) => item.value === filters.duration);
+    if (option) {
+      activeLabels.push(`${durationDimension.label}：${option.label}`);
+    }
+  }
+  if (filters.aspectRatio !== 'all') {
+    const option = aspectRatioDimension.options.find((item) => item.value === filters.aspectRatio);
+    if (option) {
+      // 将“含 X 个未知长宽比”等提示拼接到标签中，帮助用户快速了解筛选副作用
+      const labelText = aspectRatioNotice
+        ? `${aspectRatioDimension.label}：${option.label}（${aspectRatioNotice}）`
+        : `${aspectRatioDimension.label}：${option.label}`;
+      activeLabels.push(labelText);
+    }
+  }
 
   return (
     <div className="filter-panel">
@@ -79,7 +114,21 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <FilterSummary
           filtered={filteredCount}
           total={totalCount}
+          activeLabels={activeLabels}
         />
+
+        {/* 未知长宽比快捷筛选 */}
+        {unknownAspectRatioCount > 0 && (
+          <button
+            type="button"
+            className={`unknown-only-btn ${isUnknownOnlyActive ? 'active' : ''}`}
+            onClick={onToggleUnknownAspectRatio}
+          >
+            {isUnknownOnlyActive
+              ? `退出仅查看未知（${unknownAspectRatioCount}）`
+              : `仅查看未知（${unknownAspectRatioCount}）`}
+          </button>
+        )}
         
         {/* 清除全部按钮 */}
         {hasFilters && (
@@ -109,6 +158,13 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             dimension={durationDimension}
             value={filters.duration}
             onChange={(v) => onFilterChange('duration', v)}
+          />
+
+          {/* 长宽比过滤 */}
+          <FilterDimension
+            dimension={aspectRatioDimension}
+            value={filters.aspectRatio}
+            onChange={(v) => onFilterChange('aspectRatio', v)}
           />
           
           {/* 未来可添加更多过滤维度：

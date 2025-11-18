@@ -33,24 +33,6 @@
   color: #667eea;
 }
 
-.toolbar-btn-primary {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #ffffff;
-}
-
-.toolbar-btn-primary:hover:not(:disabled) {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #ffffff;
-}
-
-.toolbar-btn-primary:disabled {
-  background: #a5b4fc;
-  border-color: #a5b4fc;
-  color: #f8fafc;
-}
-
 .toolbar-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

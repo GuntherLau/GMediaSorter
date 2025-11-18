@@ -22,6 +22,7 @@ docs/
 │   ├── video-resolution-filter-plan.md       分辨率过滤设计
 │   ├── duplicate-similarity-detection-plan.md 去重与相似检测设计
 │   ├── container-format-conversion-plan.md   容器格式转换方案
+│   ├── video-aspect-ratio-filter-plan.md     长宽比过滤方案
 │   └── dynamic-video-mosaic-plan.md          动态视频拼墙方案
 │
 ├── 🚢 部署文档
@@ -66,6 +67,7 @@ docs/
 
 - [视频分辨率过滤](video-resolution-filter-plan.md) - 分辨率筛选功能的设计和实现
 - [视频时长过滤与多条件过滤器](video-duration-filter-plan.md) - 时长过滤及可扩展的多维度过滤器架构
+- [视频长宽比过滤](video-aspect-ratio-filter-plan.md) - 长宽比预设、未知素材处理与快捷筛选
 - [视频去重与相似检测](duplicate-similarity-detection-plan.md) - 重复和相似视频检测的完整方案
 - [容器格式转换](container-format-conversion-plan.md) - 批量容器封装转换的设计与任务拆解
 - [动态视频拼墙](dynamic-video-mosaic-plan.md) - 全屏瀑布流视频墙的需求与实施规划
@@ -130,6 +132,7 @@ docs/
 | DEPLOYMENT.md | ✅ 完成 | 2025-10-21 |
 | FFMPEG-PACKAGING.md | ✅ 完成 | 2025-10-21 |
 | video-resolution-filter-plan.md | ✅ 完成 | 2025-10-21 |
+| video-aspect-ratio-filter-plan.md | ✅ 完成 | 2025-11-18 |
 | duplicate-similarity-detection-plan.md | ✅ 完成 | 2025-10-21 |
 | container-format-conversion-plan.md | ✅ 完成 | 2025-11-06 |
 | dynamic-video-mosaic-plan.md | 🆕 进行中 | 2025-11-15 |

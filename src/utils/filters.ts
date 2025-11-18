@@ -4,7 +4,13 @@
  * 提供各种过滤条件的匹配函数
  */
 
-import type { DurationFilter, ResolutionFilter, VideoFile, FilterState } from '../types';
+import type {
+  DurationFilter,
+  ResolutionFilter,
+  AspectRatioFilter,
+  VideoFile,
+  FilterState,
+} from '../types';
 
 /**
  * 时长匹配函数（区间互斥）
@@ -77,6 +83,68 @@ export const matchResolutionFilter = (
 };
 
 /**
+ * 解析视频的实际长宽比（宽 / 高）
+ *
+ * - 若存在 width/height 字段，优先使用数值计算
+ * - 若仅存在字符串形式（如 "16:9"），尝试解析
+ * - 当数据缺失或异常时返回 null，调用方可自行决定兜底策略
+ */
+export const computeAspectRatio = (file: VideoFile): number | null => {
+  const { width, height, aspectRatio } = file;
+  if (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0) {
+    const ratio = width / height;
+    return Number.isFinite(ratio) ? Number(ratio.toFixed(2)) : null;
+  }
+
+  if (typeof aspectRatio === 'string' && aspectRatio.includes(':')) {
+    const [w, h] = aspectRatio.split(':').map((value) => Number.parseFloat(value));
+    if (Number.isFinite(w) && Number.isFinite(h) && h !== 0) {
+      const ratio = w / h;
+      return Number.isFinite(ratio) ? Number(ratio.toFixed(2)) : null;
+    }
+  }
+
+  return null;
+};
+
+/**
+ * 长宽比匹配函数
+ *
+ * 采用互斥区间降低浮点误差影响，默认对缺失数据保持宽松匹配。
+ */
+export const matchAspectRatioFilter = (
+  ratio: number | null,
+  filter: AspectRatioFilter
+): boolean => {
+  if (filter === 'all') {
+    return true;
+  }
+
+  if (filter === 'unknown') {
+    // 仅查看未知时，只保留缺失或异常长宽比的视频
+    return ratio === null || !Number.isFinite(ratio) || ratio <= 0;
+  }
+
+  if (ratio === null || !Number.isFinite(ratio) || ratio <= 0) {
+    // 对缺失或异常数据保持兼容，避免误过滤
+    return true;
+  }
+
+  switch (filter) {
+    case 'portrait':
+      return ratio < 0.9;
+    case 'square':
+      return ratio >= 0.9 && ratio <= 1.1;
+    case 'standard':
+      return ratio > 1.1 && ratio <= 1.9;
+    case 'ultrawide':
+      return ratio > 1.9;
+    default:
+      return true;
+  }
+};
+
+/**
  * 多维度过滤函数
  * 
  * 对视频文件应用多个过滤条件（AND 逻辑）
@@ -100,6 +168,12 @@ export const matchAllFilters = (
 
   // 时长过滤
   if (!matchDurationFilter(file.duration, filters.duration)) {
+    return false;
+  }
+
+  // 长宽比过滤
+  const aspectRatio = computeAspectRatio(file);
+  if (!matchAspectRatioFilter(aspectRatio, filters.aspectRatio)) {
     return false;
   }
 

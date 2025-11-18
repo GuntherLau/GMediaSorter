@@ -82,9 +82,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
           动态视频拼墙
         </button>
         <button
-          className="toolbar-btn toolbar-btn-primary"
+          className="toolbar-btn"
           onClick={onOpenConversion}
           disabled={conversionDisabled}
+          // 维持中性色调，避免按钮在未操作时看起来处于选中状态
           title={conversionCount === 0 ? '当前没有可转换的视频' : '批量转换当前列表中的所有视频'}
         >
           <span className="toolbar-btn-icon">🎞️</span>

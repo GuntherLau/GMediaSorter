@@ -20,6 +20,29 @@
   margin-bottom: 16px;
 }
 
+/* 未知长宽比快捷按钮，保持轻量外观方便随手点击 */
+.unknown-only-btn {
+  padding: 6px 12px;
+  border: 1px dashed #6c757d;
+  background: white;
+  color: #6c757d;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.unknown-only-btn:hover {
+  background: #e9ecef;
+}
+
+.unknown-only-btn.active {
+  border-color: #0d6efd;
+  color: #0d6efd;
+  background: rgba(13, 110, 253, 0.12);
+}
+
 /* 折叠按钮 */
 .filter-toggle {
   display: flex;
@@ -180,6 +203,22 @@
   .clear-all-btn:hover {
     background: #f44336;
     color: white;
+  }
+
+  .unknown-only-btn {
+    background: #2a2a2a;
+    border-color: #8c9dab;
+    color: #b0bec5;
+  }
+
+  .unknown-only-btn:hover {
+    background: #3a3f45;
+  }
+
+  .unknown-only-btn.active {
+    border-color: #64b5f6;
+    color: #64b5f6;
+    background: rgba(100, 181, 246, 0.16);
   }
 }
 

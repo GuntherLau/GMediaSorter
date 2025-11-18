@@ -5,7 +5,7 @@
  * 新增过滤维度时，只需在此文件添加相应配置即可。
  */
 
-import type { FilterDimension, ResolutionPreset, DurationPreset } from '../types';
+import type { FilterDimension, ResolutionPreset, DurationPreset, AspectRatioPreset } from '../types';
 
 /**
  * 分辨率过滤器配置
@@ -56,6 +56,30 @@ export const durationDimension: FilterDimension<DurationPreset> = {
 };
 
 /**
+ * 长宽比过滤器配置
+ *
+ * 借助预设区间快速筛选不同画面形态：
+ * - portrait: 竖屏视频（常用于短视频平台）
+ * - square: 方形画面（接近 1:1）
+ * - standard: 标准横屏（覆盖 4:3 ～ 16:9 常见比例）
+ * - ultrawide: 超宽屏（电影宽幅、21:9 等）
+ */
+export const aspectRatioDimension: FilterDimension<AspectRatioPreset> = {
+  key: 'aspectRatio',
+  label: '🖼️ 长宽比',
+  options: [
+    { value: 'all', label: '全部' },
+    // 直接显示典型比例数值，便于用户快速识别
+    { value: 'portrait', label: '9:16 竖屏' },
+    { value: 'square', label: '1:1 方形' },
+    { value: 'standard', label: '16:9 标准横屏' },
+    { value: 'ultrawide', label: '21:9 宽屏/电影' },
+    { value: 'unknown', label: '仅查看未知' },
+  ],
+  defaultValue: 'all',
+};
+
+/**
  * 所有过滤维度的配置列表
  * 
  * 用于批量处理或遍历所有过滤维度
@@ -63,6 +87,7 @@ export const durationDimension: FilterDimension<DurationPreset> = {
 export const allFilterDimensions = [
   resolutionDimension,
   durationDimension,
+  aspectRatioDimension,
   // 未来可添加更多维度：
   // fileSizeDimension,
   // codecDimension,
@@ -77,4 +102,5 @@ export const allFilterDimensions = [
 export const defaultFilterValues = {
   resolution: resolutionDimension.defaultValue,
   duration: durationDimension.defaultValue,
+  aspectRatio: aspectRatioDimension.defaultValue,
 } as const;

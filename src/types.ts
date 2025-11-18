@@ -15,11 +15,15 @@ export type DurationPreset =
 // 单一过滤器类型(保持向后兼容)
 export type ResolutionFilter = 'all' | ResolutionPreset;
 export type DurationFilter = 'all' | DurationPreset;
+// 长宽比预设档位，新增 unknown 用于快速定位缺失元数据的视频
+export type AspectRatioPreset = 'portrait' | 'square' | 'standard' | 'ultrawide' | 'unknown';
+export type AspectRatioFilter = 'all' | AspectRatioPreset;
 
 // 多维度过滤器状态
 export interface FilterState {
   resolution: ResolutionFilter;  // 分辨率过滤
   duration: DurationFilter;       // 时长过滤
+  aspectRatio: AspectRatioFilter; // 长宽比过滤
   // 未来扩展:
   // fileSize?: FileSizeFilter;
   // codec?: CodecFilter;

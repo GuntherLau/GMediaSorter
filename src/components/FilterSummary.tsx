@@ -13,6 +13,8 @@ export interface FilterSummaryProps {
   filtered: number;
   /** 总数量 */
   total: number;
+  /** 可选：当前激活过滤标签，用于向用户提示具体维度 */
+  activeLabels?: string[];
 }
 
 /**
@@ -27,6 +29,7 @@ export interface FilterSummaryProps {
 export const FilterSummary: React.FC<FilterSummaryProps> = ({
   filtered,
   total,
+  activeLabels = [],
 }) => {
   // 是否正在过滤（数量不同）
   const isFiltering = filtered !== total;
@@ -36,20 +39,32 @@ export const FilterSummary: React.FC<FilterSummaryProps> = ({
 
   return (
     <div className={`filter-summary ${isFiltering ? 'filtering' : ''}`}>
-      {isFiltering ? (
-        <>
-          <span className="filter-summary-label">已过滤</span>
-          <span className="filter-summary-count">
-            {filtered} / {total}
-          </span>
-          <span className="filter-summary-percentage">({percentage}%)</span>
-        </>
-      ) : (
-        <>
-          <span className="filter-summary-label">共</span>
-          <span className="filter-summary-count">{total}</span>
-          <span className="filter-summary-label">个视频</span>
-        </>
+      <div className="filter-summary-main">
+        {isFiltering ? (
+          <>
+            <span className="filter-summary-label">已过滤</span>
+            <span className="filter-summary-count">
+              {filtered} / {total}
+            </span>
+            <span className="filter-summary-percentage">({percentage}%)</span>
+          </>
+        ) : (
+          <>
+            <span className="filter-summary-label">共</span>
+            <span className="filter-summary-count">{total}</span>
+            <span className="filter-summary-label">个视频</span>
+          </>
+        )}
+      </div>
+      {/* 展示当前激活的过滤标签，便于快速了解筛选条件 */}
+      {isFiltering && activeLabels.length > 0 && (
+        <ul className="filter-summary-active">
+          {activeLabels.map((label) => (
+            <li key={label} className="filter-summary-active-item">
+              {label}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

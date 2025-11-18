@@ -8,6 +8,7 @@ import {
   type DetectionProgress,
   type SimilarityOptions,
   type FilterState,
+  type AspectRatioFilter,
   type EncodingFormat,
   type ConversionRequest,
   type ConversionProgress,
@@ -20,7 +21,7 @@ import {
   type VideoPreviewSource,
   type PlayerPreferences,
 } from './types';
-import { filterVideoFiles, formatDuration } from './utils/filters';
+import { filterVideoFiles, formatDuration, computeAspectRatio } from './utils/filters';
 import Toolbar from './components/Toolbar';
 import ProgressDialog from './components/ProgressDialog';
 import DuplicatePanel from './components/DuplicatePanel';
@@ -233,15 +234,39 @@ function App() {
     });
   }, []);
 
+  // 记录“仅查看未知”前的长宽比选择，便于一键切换回来
+  const [lastNonUnknownAspectRatio, setLastNonUnknownAspectRatio] = useState<AspectRatioFilter>('all');
+
   // 多维度过滤器状态
   const [filters, setFilters] = useState<FilterState>({
     resolution: 'all',
     duration: 'all',
+    aspectRatio: 'all',
   });
 
   // 过滤后的视频文件列表
-  const filteredVideoFiles = useMemo(() => {
-    return filterVideoFiles(videoFiles, filters);
+  // 统计过滤结果并补充长宽比缺失提示，便于在摘要区域展示
+  const { filteredVideoFiles, aspectRatioNotice, unknownAspectRatioCount } = useMemo(() => {
+    const filtered = filterVideoFiles(videoFiles, filters);
+
+    let unknownRatioCount = 0;
+    for (const file of filtered) {
+      const ratio = computeAspectRatio(file);
+      if (ratio === null || !Number.isFinite(ratio) || ratio <= 0) {
+        unknownRatioCount += 1;
+      }
+    }
+
+    const notice =
+      filters.aspectRatio !== 'all' && filters.aspectRatio !== 'unknown' && unknownRatioCount > 0
+        ? `含 ${unknownRatioCount} 个未知长宽比`
+        : null;
+
+    return {
+      filteredVideoFiles: filtered,
+      aspectRatioNotice: notice,
+      unknownAspectRatioCount: unknownRatioCount,
+    } as const;
   }, [videoFiles, filters]);
 
   const handleOpenMosaic = useCallback(async () => {
@@ -318,7 +343,9 @@ function App() {
       setFilters({
         resolution: 'all',
         duration: 'all',
+        aspectRatio: 'all',
       });
+      setLastNonUnknownAspectRatio('all');
     } catch (error) {
       console.error('Error loading video files:', error);
       alert('加载视频文件失败');
@@ -342,15 +369,52 @@ function App() {
     dimension: K,
     value: FilterState[K]
   ) => {
-    setFilters(prev => ({ ...prev, [dimension]: value }));
+    setFilters((prev) => {
+      if (dimension === 'aspectRatio') {
+        const nextValue = value as FilterState['aspectRatio'];
+        const unknownTag = 'unknown' as FilterState['aspectRatio'];
+
+        if (nextValue === unknownTag) {
+          const prevValue = prev.aspectRatio as FilterState['aspectRatio'];
+          if (prevValue !== unknownTag) {
+            setLastNonUnknownAspectRatio(prevValue);
+          }
+        } else {
+          setLastNonUnknownAspectRatio(nextValue);
+        }
+      }
+
+      return { ...prev, [dimension]: value };
+    });
   };
+
+  // “仅查看未知”快捷筛选：再次点击可恢复到上一档位
+  const handleToggleUnknownAspectRatio = useCallback(() => {
+    setFilters((prev) => {
+      const prevAspectRatio = prev.aspectRatio as FilterState['aspectRatio'];
+      const unknownTag = 'unknown' as FilterState['aspectRatio'];
+
+      if (prevAspectRatio === unknownTag) {
+        const fallback = lastNonUnknownAspectRatio === 'unknown'
+          ? 'all'
+          : lastNonUnknownAspectRatio;
+        return { ...prev, aspectRatio: fallback };
+      }
+
+      setLastNonUnknownAspectRatio(prevAspectRatio);
+
+      return { ...prev, aspectRatio: unknownTag };
+    });
+  }, [lastNonUnknownAspectRatio]);
 
   // 清除所有过滤器
   const clearAllFilters = () => {
     setFilters({
       resolution: 'all',
       duration: 'all',
+      aspectRatio: 'all',
     });
+    setLastNonUnknownAspectRatio('all');
   };
 
   // 监听检测进度
@@ -957,6 +1021,9 @@ function App() {
               onClearAll={clearAllFilters}
               totalCount={videoFiles.length}
               filteredCount={filteredVideoFiles.length}
+              aspectRatioNotice={aspectRatioNotice}
+              unknownAspectRatioCount={unknownAspectRatioCount}
+              onToggleUnknownAspectRatio={handleToggleUnknownAspectRatio}
             />
 
             {/* 转码提示 */}
