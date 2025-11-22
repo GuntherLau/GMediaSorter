@@ -46,35 +46,3 @@
   font-size: 14px;
   color: #6b7280;
 }
-
-.toolbar-mosaic-settings {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.toolbar-mosaic-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: #374151;
-}
-
-.toolbar-mosaic-select {
-  padding: 6px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: white;
-  color: #374151;
-  font-size: 14px;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-}
-
-.toolbar-mosaic-select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.2);
-}

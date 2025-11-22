@@ -21,7 +21,7 @@ import {
   type VideoPreviewSource,
   type PlayerPreferences,
 } from './types';
-import { filterVideoFiles, formatDuration, computeAspectRatio } from './utils/filters';
+import { filterVideoFiles, computeAspectRatio } from './utils/filters';
 import Toolbar from './components/Toolbar';
 import ProgressDialog from './components/ProgressDialog';
 import DuplicatePanel from './components/DuplicatePanel';
@@ -38,6 +38,8 @@ import VideoMosaicPrototype, {
   type VideoMosaicSource,
   type MosaicPerformancePreset,
 } from './components/VideoMosaicPrototype';
+import MosaicConfigDialog from './components/MosaicConfigDialog';
+import { VideoCard } from './components/VideoCard';
 
 type ConversionDraft = {
   format: EncodingFormat;
@@ -80,20 +82,6 @@ const createInitialMosaicState = (): MosaicState => ({
   loading: false,
   error: null,
 });
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-};
-
-const formatResolution = (file: VideoFile): string | null => {
-  if (file.width && file.height) {
-    return `${file.width} × ${file.height}`;
-  }
-  return null;
-};
 
 function App() {
   const [currentPath, setCurrentPath] = useState<string>('');
@@ -209,30 +197,7 @@ function App() {
     }
   }, []);
 
-  const handleMosaicColumnsChange = useCallback((columns: number) => {
-    setMosaicConfig((prev) => {
-      const nextColumns = columns > 0 ? columns : DEFAULT_MOSAIC_CONFIG.columns;
-      if (prev.columns === nextColumns) {
-        return prev;
-      }
-      return {
-        columns: nextColumns,
-        performancePreset: prev.performancePreset,
-      } satisfies MosaicConfig;
-    });
-  }, []);
-
-  const handleMosaicPerformanceChange = useCallback((preset: MosaicPerformancePreset) => {
-    setMosaicConfig((prev) => {
-      if (prev.performancePreset === preset) {
-        return prev;
-      }
-      return {
-        columns: prev.columns,
-        performancePreset: preset,
-      } satisfies MosaicConfig;
-    });
-  }, []);
+  const [isMosaicConfigDialogOpen, setMosaicConfigDialogOpen] = useState(false);
 
   // 记录“仅查看未知”前的长宽比选择，便于一键切换回来
   const [lastNonUnknownAspectRatio, setLastNonUnknownAspectRatio] = useState<AspectRatioFilter>('all');
@@ -312,6 +277,16 @@ function App() {
       });
     }
   }, [filteredVideoFiles]);
+
+  const handleRequestMosaicConfig = useCallback(() => {
+    setMosaicConfigDialogOpen(true);
+  }, []);
+
+  const handleConfirmMosaicConfig = useCallback((columns: number, preset: MosaicPerformancePreset) => {
+    setMosaicConfig({ columns, performancePreset: preset });
+    setMosaicConfigDialogOpen(false);
+    void handleOpenMosaic();
+  }, [handleOpenMosaic]);
 
   // 检测相关状态
   const [detecting, setDetecting] = useState(false);
@@ -997,7 +972,7 @@ function App() {
               onFindSimilar={handleFindSimilar}
               onOpenConversion={handleOpenConversionMenu}
               onOpenContainerConversion={handleOpenContainerConversionMenu}
-              onOpenMosaic={handleOpenMosaic}
+              onOpenMosaic={handleRequestMosaicConfig}
               disabled={detecting}
               videoCount={filteredVideoFiles.length}
               conversionCount={conversionCandidates.length > 0 ? conversionCandidates.length : filteredVideoFiles.length}
@@ -1008,10 +983,6 @@ function App() {
               }
               mosaicSourceCount={filteredVideoFiles.length}
               mosaicLoading={mosaicState.loading}
-              mosaicColumns={mosaicConfig.columns}
-              onMosaicColumnsChange={handleMosaicColumnsChange}
-              mosaicPerformancePreset={mosaicConfig.performancePreset}
-              onMosaicPerformanceChange={handleMosaicPerformanceChange}
             />
 
             {/* 新的多维度过滤器面板 */}
@@ -1026,56 +997,16 @@ function App() {
               onToggleUnknownAspectRatio={handleToggleUnknownAspectRatio}
             />
 
-            {/* 转码提示 */}
-            {filteredVideoFiles.length > 0 && (
-              <div className="selection-info-bar">
-                视频转码将自动处理当前列表中的全部 {filteredVideoFiles.length} 个视频
-              </div>
-            )}
-
             {filteredVideoFiles.length > 0 ? (
               <div className="video-grid">
                 {filteredVideoFiles.map((file) => (
-                  <div
+                  <VideoCard
                     key={file.path}
-                    className={`video-card ${selectedFiles.has(file.path) ? 'selected' : ''}`}
-                    onClick={() => toggleFileSelection(file.path)}
-                  >
-                    <div className="video-icon">🎬</div>
-                    <div className="video-info">
-                      <h3 className="video-name" title={file.name}>
-                        {file.name}
-                      </h3>
-                      <p className="video-details">
-                        {formatFileSize(file.size)} • {file.extension}
-                      </p>
-                      <p className="video-date">
-                        {new Date(file.modified).toLocaleString('zh-CN')}
-                      </p>
-                      {formatResolution(file) && (
-                        <p className="video-resolution" title="视频分辨率">
-                          分辨率: {formatResolution(file)}
-                        </p>
-                      )}
-                      {file.duration !== null && (
-                        <p className="video-duration" title="视频时长">
-                          时长: {formatDuration(file.duration)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="video-card-actions">
-                      <button
-                        className="video-card-play"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleOpenPlayer(file);
-                        }}
-                      >
-                        播放
-                      </button>
-                    </div>
-                    {selectedFiles.has(file.path) && <div className="selected-indicator">✓</div>}
-                  </div>
+                    file={file}
+                    selected={selectedFiles.has(file.path)}
+                    onToggleSelect={toggleFileSelection}
+                    onPlay={handleOpenPlayer}
+                  />
                 ))}
               </div>
             ) : (
@@ -1168,6 +1099,14 @@ function App() {
         onClose={handleCloseContainerConversionResult}
         onOpenOutput={handleOpenContainerConversionOutput}
         onViewLog={handleViewContainerConversionLog}
+      />
+
+      <MosaicConfigDialog
+        open={isMosaicConfigDialogOpen}
+        columns={mosaicConfig.columns}
+        performancePreset={mosaicConfig.performancePreset}
+        onConfirm={handleConfirmMosaicConfig}
+        onClose={() => setMosaicConfigDialogOpen(false)}
       />
 
       <VideoPlayer

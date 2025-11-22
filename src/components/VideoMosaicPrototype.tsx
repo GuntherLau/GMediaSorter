@@ -73,6 +73,20 @@ const generateUniqueId = () => {
 
 const createSlotKey = (videoId: string) => `${videoId}-${generateUniqueId()}`;
 
+const safelyPlay = (element: HTMLVideoElement | null | undefined) => {
+  if (!element) {
+    return;
+  }
+  try {
+    const playResult = element.play();
+    if (playResult && typeof playResult.catch === 'function') {
+      void playResult.catch(() => undefined);
+    }
+  } catch {
+    // 忽略播放失败
+  }
+};
+
 const pickRandomVideo = (pool: VideoMosaicSource[]): VideoMosaicSource | null => {
   if (pool.length === 0) {
     return null;
@@ -446,10 +460,7 @@ const VideoMosaicPrototype = ({
       return;
     }
     element.muted = false;
-    const playResult = element.play();
-    if (playResult && typeof playResult.catch === 'function') {
-      void playResult.catch(() => undefined);
-    }
+    safelyPlay(element);
   }, [audibleSlotKey]);
 
   useEffect(() => {
@@ -681,7 +692,7 @@ const VideoMosaicPrototype = ({
     (slotIndex: number, videoElement: HTMLVideoElement | null) => {
       if (videoElement && videoElement.currentTime < SLOT_MIN_DURATION) {
         videoElement.currentTime = 0;
-        void videoElement.play();
+        safelyPlay(videoElement);
         return;
       }
       replaceSlot(slotIndex);
@@ -817,7 +828,7 @@ const VideoMosaicPrototype = ({
                       // 忽略跳转失败
                     }
                   }
-                  void element.play();
+                  safelyPlay(element);
                 }}
               />
             </article>

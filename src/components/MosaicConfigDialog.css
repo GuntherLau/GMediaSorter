@@ -1,0 +1,175 @@
+.mosaic-config-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.mosaic-config-dialog {
+  width: min(520px, 90vw);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mosaic-config-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mosaic-config-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.mosaic-config-subtitle {
+  margin: 4px 0 0;
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.mosaic-config-close {
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6c757d;
+}
+
+.mosaic-config-section h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.mosaic-config-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.mosaic-config-columns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mosaic-config-pill {
+  border: 1px solid #ced4da;
+  background: white;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mosaic-config-pill.selected {
+  border-color: #0d6efd;
+  color: #0d6efd;
+  background: rgba(13, 110, 253, 0.08);
+}
+
+.mosaic-config-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mosaic-config-radio {
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.mosaic-config-radio input {
+  margin-top: 6px;
+}
+
+.mosaic-config-radio.checked {
+  border-color: #0d6efd;
+  background: rgba(13, 110, 253, 0.05);
+}
+
+.mosaic-config-radio-title {
+  display: block;
+  font-weight: 600;
+}
+
+.mosaic-config-radio-desc {
+  display: block;
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.mosaic-config-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.mosaic-config-secondary,
+.mosaic-config-primary {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.mosaic-config-secondary {
+  background: #f1f3f5;
+  color: #495057;
+}
+
+.mosaic-config-primary {
+  background: #0d6efd;
+  color: white;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mosaic-config-dialog {
+    background: #1f1f1f;
+    color: #f5f5f5;
+  }
+  .mosaic-config-subtitle,
+  .mosaic-config-hint,
+  .mosaic-config-radio-desc {
+    color: #b0bec5;
+  }
+  .mosaic-config-pill {
+    border-color: #3a3a3a;
+    background: #2b2b2b;
+    color: #f5f5f5;
+  }
+  .mosaic-config-pill.selected {
+    border-color: #64b5f6;
+    color: #64b5f6;
+    background: rgba(100, 181, 246, 0.15);
+  }
+  .mosaic-config-radio {
+    border-color: #3a3a3a;
+    background: #2b2b2b;
+  }
+  .mosaic-config-radio.checked {
+    border-color: #64b5f6;
+    background: rgba(100, 181, 246, 0.12);
+  }
+  .mosaic-config-secondary {
+    background: #2f2f2f;
+    color: #e0e0e0;
+  }
+}

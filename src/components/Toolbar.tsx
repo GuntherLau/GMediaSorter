@@ -1,7 +1,5 @@
 import React from 'react';
 import './Toolbar.css';
-import type { MosaicPerformancePreset } from './VideoMosaicPrototype';
-
 interface ToolbarProps {
   onFindDuplicates: () => void;
   onFindSimilar: () => void;
@@ -14,10 +12,6 @@ interface ToolbarProps {
   containerConversionCount: number;
   mosaicSourceCount: number;
   mosaicLoading?: boolean;
-  mosaicColumns: number;
-  onMosaicColumnsChange: (columns: number) => void;
-  mosaicPerformancePreset: MosaicPerformancePreset;
-  onMosaicPerformanceChange: (preset: MosaicPerformancePreset) => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ 
@@ -32,10 +26,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
   containerConversionCount,
   mosaicSourceCount,
   mosaicLoading = false,
-  mosaicColumns,
-  onMosaicColumnsChange,
-  mosaicPerformancePreset,
-  onMosaicPerformanceChange,
 }) => {
   const conversionDisabled = disabled || conversionCount === 0;
   const containerConversionDisabled = disabled || containerConversionCount === 0;
@@ -44,34 +34,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
   return (
     <div className="toolbar">
       <div className="toolbar-actions">
-        <div className="toolbar-mosaic-settings">
-          <label className="toolbar-mosaic-label">
-            拼墙列数
-            <select
-              className="toolbar-mosaic-select"
-              value={mosaicColumns}
-              onChange={(event) => onMosaicColumnsChange(Number(event.target.value))}
-            >
-              {[2, 3, 4, 5].map((option) => (
-                <option key={option} value={option}>
-                  {option} 列
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="toolbar-mosaic-label">
-            性能预设
-            <select
-              className="toolbar-mosaic-select"
-              value={mosaicPerformancePreset}
-              onChange={(event) => onMosaicPerformanceChange(event.target.value as MosaicPerformancePreset)}
-            >
-              <option value="low">低（少量视频）</option>
-              <option value="medium">中（默认）</option>
-              <option value="high">高（更多视频）</option>
-            </select>
-          </label>
-        </div>
         <button
           className="toolbar-btn"
           onClick={onOpenMosaic}
